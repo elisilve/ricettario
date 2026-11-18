@@ -486,7 +486,7 @@ function renderRecipe(id) {
 //  EDITOR — nuova ricetta / modifica
 // =============================================================
 // Unità di misura degli ingredienti (menu a tendina: su iPhone niente tastiera)
-const UNITS = ['g', 'ml', 'pizzico', 'q.b.'];
+const UNITS = ['gr', 'ml', 'pizzico', 'q.b.'];
 
 /** Menu delle unità. Mostra anche un valore "vecchio" (es. kg) se l'ingrediente lo usava già,
  *  e "pz" quando l'alimento della dispensa ha i valori per pezzo */
@@ -496,7 +496,7 @@ const unitOptions = (value, extra = []) => {
   return opts.map((u) => `<option value="${esc(u)}" ${u === value ? 'selected' : ''}>${u ? esc(u) : '—'}</option>`).join('');
 };
 
-const basisLabel = (f) => (f.basis === 'pz' ? 'per 1 pezzo' : 'per 100 g');
+const basisLabel = (f) => (f.basis === 'pz' ? 'per 1 pezzo' : 'per 100 gr');
 
 // Copia dei valori dell'alimento, salvata nella ricetta (serve se l'alimento viene eliminato)
 const foodSnapshot = (f) => ({
@@ -507,7 +507,7 @@ const ingredientRow = (i = {}) => `
   <div class="ing-row" data-food-id="${esc(i.foodId || '')}" data-food-snap="${i.food ? esc(JSON.stringify(i.food)) : ''}">
     <div class="ing-fields">
       <input class="input qty" name="qty" inputmode="decimal" placeholder="100" value="${i.qty ?? ''}">
-      <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(i.name ? (i.unit || '') : 'g', i.food?.basis === 'pz' ? ['pz'] : [])}</select>
+      <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(i.name ? (i.unit === 'g' ? 'gr' : i.unit || '') : 'gr', i.food?.basis === 'pz' ? ['pz'] : [])}</select>
       <input class="input" name="ing" placeholder="Ingrediente" value="${esc(i.name || '')}" autocomplete="off">
       <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
     </div>
@@ -622,8 +622,8 @@ function renderEditor(id, presetCategory) {
       // alimento "per pezzo": aggiungo l'opzione pz e la seleziono
       if (![...unit.options].some((o) => o.value === 'pz')) unit.insertAdjacentHTML('beforeend', '<option value="pz">pz</option>');
       if (setUnit) unit.value = 'pz';
-    } else if (setUnit && !['g', 'ml', 'pizzico', 'q.b.'].includes(unit.value)) {
-      unit.value = 'g';
+    } else if (setUnit && !UNITS.includes(unit.value)) {
+      unit.value = 'gr';
     }
   };
   const unlink = (row) => { row.dataset.foodId = ''; row.dataset.foodSnap = ''; };
@@ -641,9 +641,13 @@ function renderEditor(id, presetCategory) {
       if (m) $calc.innerHTML = macroLine(m);
       else if (ing.food && ing.qty == null) $calc.innerHTML = `<span class="muted">Dalla dispensa · inserisci la quantità</span>`;
       else if (isNegligible(ing)) $calc.innerHTML = ing.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
-      else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${ing.food.basis === 'pz' ? 'pz' : 'g o ml'}</span>`;
-      else if (ing.name && row.dataset.declined) $calc.innerHTML = '<span class="warn">Non conteggiato nei valori</span>';
-      else $calc.innerHTML = ing.name ? '<span class="muted">Non in dispensa</span>' : '';
+      else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${ing.food.basis === 'pz' ? 'pz' : 'gr o ml'}</span>`;
+      else if (ing.name) {
+        // Non in dispensa: si può aggiungere in qualsiasi momento, anche modificando la ricetta dopo
+        $calc.innerHTML = `
+          <span class="${row.dataset.declined ? 'warn' : 'muted'}">${row.dataset.declined ? 'Non conteggiato nei valori' : 'Non in dispensa'}</span>
+          <button type="button" class="add-pantry" data-add-food>${icon.plus} Aggiungi alla dispensa</button>`;
+      } else $calc.innerHTML = '';
     });
 
     const t = nut.total, ps = nut.perServing;
@@ -678,17 +682,27 @@ function renderEditor(id, presetCategory) {
     if (!document.body.contains(row)) return;
     const decline = () => { row.dataset.declined = name; updateCalc(); };
     if (!yes) return decline();
-    // Si apre il pop-up dell'alimento; salvato quello, si torna alla ricetta con l'ingrediente collegato
+    openAddFood(row, decline);
+  };
+
+  // Pop-up dell'alimento con il nome già scritto; salvato quello si torna alla ricetta con l'ingrediente collegato
+  const openAddFood = (row, onCancel) => {
     foodSheet(null, {
-      name,
+      name: row.querySelector('[name=ing]').value.trim(),
       onSaved: (food) => {
         link(row, food, true);
         updateCalc();
         toast(`${food.name} aggiunto alla dispensa`);
       },
-      onCancel: decline,
+      onCancel,
     });
   };
+
+  // Pulsante "+ Aggiungi alla dispensa" sotto gli ingredienti non collegati
+  $ing.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-add-food]');
+    if (btn) openAddFood(btn.closest('.ing-row'));
+  });
 
   // ----- Suggerimenti dalla dispensa -----
   const showSuggest = (row) => {
@@ -809,7 +823,7 @@ function renderPantry() {
   $view.innerHTML = `
     <section class="page">
       <h1 class="large-title">Dispensa</h1>
-      <p class="subtitle">Gli alimenti che usi spesso, con i valori per 100 g o per pezzo.</p>
+      <p class="subtitle">Gli alimenti che usi spesso, con i valori per 100 gr o per pezzo.</p>
       <label class="search glass">
         ${icon.search}
         <input id="pq" type="search" placeholder="Cerca un alimento" autocomplete="off">
@@ -872,7 +886,7 @@ function foodSheet(food = null, opts = {}) {
        <div class="field">
          <span>I valori si riferiscono a</span>
          <div class="segmented" id="basis">
-           <button type="button" data-basis="g" class="${basis === 'g' ? 'on' : ''}">100 g / 100 ml</button>
+           <button type="button" data-basis="g" class="${basis === 'g' ? 'on' : ''}">100 gr / 100 ml</button>
            <button type="button" data-basis="pz" class="${basis === 'pz' ? 'on' : ''}">1 pezzo</button>
          </div>
        </div>
@@ -896,10 +910,10 @@ function foodSheet(food = null, opts = {}) {
       const macros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
       const updateHint = () => {
         const k = kcalFromMacros(macros());
-        const per = basis === 'pz' ? 'per pezzo' : 'per 100 g';
+        const per = basis === 'pz' ? 'per pezzo' : 'per 100 gr';
         $hint.innerHTML = k
           ? `Dai macro risultano circa <strong>${k} kcal</strong> ${per}.${form.kcal.value ? '' : ' Se lasci vuoto userò questo valore.'}`
-          : `Per i liquidi conta 1 ml come 1 g.`;
+          : `Per i liquidi conta 1 ml come 1 gr.`;
       };
       sheet.querySelectorAll('[data-basis]').forEach((b) =>
         b.addEventListener('click', () => {

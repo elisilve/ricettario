@@ -56,11 +56,11 @@ function seed() {
       time: 5,
       servings: 1,
       ingredients: [
-        { qty: 40, unit: 'g', name: 'fiocchi d’avena' },
+        { qty: 40, unit: 'gr', name: 'fiocchi d’avena' },
         { qty: 150, unit: 'ml', name: 'latte di mandorla' },
-        { qty: 100, unit: 'g', name: 'yogurt greco 0%' },
+        { qty: 100, unit: 'gr', name: 'yogurt greco 0%' },
         { qty: 1, unit: 'cucchiaino', name: 'cacao amaro' },
-        { qty: 10, unit: 'g', name: 'mandorle' },
+        { qty: 10, unit: 'gr', name: 'mandorle' },
       ],
       steps: [
         'In un barattolo mescola avena, cacao e latte di mandorla.',
@@ -97,6 +97,8 @@ function load() {
 // Aggiunge i campi nuovi ai dati salvati con le versioni precedenti
 function normalize(d) {
   if (!Array.isArray(d.pantry)) d.pantry = [];
+  // L'unità dei grammi si scrive "gr"
+  d.recipes.forEach((r) => r.ingredients.forEach((i) => { if (i.unit === 'g') i.unit = 'gr'; }));
   return d;
 }
 

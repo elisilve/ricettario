@@ -523,3 +523,13 @@ body.no-tabbar .tabbar { display: none; }
 }
 .badge-miss svg { flex-shrink: 0; }
 .sheet-actions .btn { height: auto; min-height: 50px; padding: 12px 18px; text-align: center; }
+
+/* Pulsante "+ Aggiungi alla dispensa" sotto l'ingrediente */
+.add-pantry {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin: 3px 0 0 8px; vertical-align: middle;
+  padding: 4px 10px 4px 7px; border-radius: 99px;
+  font-size: 12.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
+}
+.add-pantry svg { width: 14px; height: 14px; stroke-width: 2.6; }
+.add-pantry:active { opacity: .6; }
