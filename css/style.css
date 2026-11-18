@@ -32,25 +32,26 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0b10;
-    --text: #f5f5f7;
-    --text-2: rgba(235, 235, 245, .6);
-    --text-3: rgba(235, 235, 245, .3);
-    --accent-soft: rgba(255, 107, 61, .2);
-    --glass: rgba(40, 40, 50, .5);
-    --glass-strong: rgba(40, 40, 50, .82);
-    --glass-border: rgba(255, 255, 255, .1);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, .35);
-    --hairline: rgba(255, 255, 255, .1);
-    --input-bg: rgba(118, 118, 128, .24);
-  }
+/* Tema scuro: attivato dal pulsante sole/luna (attributo data-theme su <html>) */
+:root[data-theme="dark"] {
+  --bg: #333333;
+  --text: #f5f5f7;
+  --text-2: rgba(235, 235, 245, .62);
+  --text-3: rgba(235, 235, 245, .32);
+  --accent-soft: rgba(255, 107, 61, .2);
+  --glass: rgba(70, 70, 70, .55);
+  --glass-strong: rgba(56, 56, 56, .88);
+  --glass-border: rgba(255, 255, 255, .08);
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, .28);
+  --hairline: rgba(255, 255, 255, .1);
+  --input-bg: rgba(255, 255, 255, .08);
 }
+
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html { background: var(--bg); }
+html { background: var(--bg); color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
 
 body {
   margin: 0;
@@ -60,6 +61,7 @@ body {
   line-height: 1.4;
   color: var(--text);
   background: var(--bg);
+  transition: background-color .3s, color .3s;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
@@ -74,9 +76,7 @@ svg { flex-shrink: 0; }
 .b1 { width: 60vmax; height: 60vmax; background: #ffb38a; top: -20vmax; right: -20vmax; }
 .b2 { width: 50vmax; height: 50vmax; background: #a8c8ff; bottom: -15vmax; left: -20vmax; }
 .b3 { width: 35vmax; height: 35vmax; background: #ffd6e7; top: 35%; left: 40%; opacity: .45; }
-@media (prefers-color-scheme: dark) {
-  .blob { opacity: .22; }
-}
+[data-theme="dark"] .blob { opacity: .12; }
 
 /* ---------- Vetro ---------- */
 .glass {
@@ -119,6 +119,14 @@ svg { flex-shrink: 0; }
 .nav-btn.strong { font-weight: 600; }
 .nav-btn.back span { max-width: 28vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-btn:active { opacity: .5; }
+
+/* Pulsante sole/luna */
+.theme-toggle {
+  width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 50%;
+  color: var(--text-2);
+}
+.theme-toggle svg { width: 21px; height: 21px; animation: spin-in .4s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes spin-in { from { transform: rotate(-90deg) scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- Pagine ---------- */
 .view {
@@ -196,7 +204,7 @@ svg { flex-shrink: 0; }
 .chip.p { color: var(--prot); background: color-mix(in srgb, var(--prot) 14%, transparent); }
 .chip.c { color: #d48a00; background: color-mix(in srgb, var(--carb) 18%, transparent); }
 .chip.f { color: var(--fat);  background: color-mix(in srgb, var(--fat) 14%, transparent); }
-@media (prefers-color-scheme: dark) { .chip.c { color: var(--carb); } }
+[data-theme="dark"] .chip.c { color: var(--carb); }
 
 .empty { color: var(--text-2); text-align: center; padding: 30px 0; }
 .empty-state {

@@ -41,11 +41,35 @@ const go = (hash, replace = false) => (replace ? location.replace(hash) : (locat
 // ---------- Barra di navigazione ----------
 function setNav({ title = '', back = null, right = '' }) {
   $navTitle.textContent = title;
-  $navLeft.innerHTML = back
-    ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>`
-    : '';
+  $navLeft.innerHTML =
+    themeButton() +
+    (back ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>` : '');
   $navRight.innerHTML = right;
 }
+
+// ---------- Tema chiaro / scuro ----------
+// L'icona mostra la modalità attuale: sole = chiara, luna = scura
+const THEME_KEY = 'ricettario:theme';
+const currentTheme = () => document.documentElement.dataset.theme || 'light';
+
+const themeButton = () => {
+  const dark = currentTheme() === 'dark';
+  return `<button class="nav-btn theme-toggle" id="theme-toggle"
+            aria-label="${dark ? 'Passa alla modalità chiara' : 'Passa alla modalità scura'}">
+            ${dark ? icon.moon : icon.sun}
+          </button>`;
+};
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.getElementById('theme-color').content = theme === 'dark' ? '#333333' : '#eef0f6';
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage non disponibile */ }
+  document.getElementById('theme-toggle').outerHTML = themeButton();
+}
+
+$navLeft.addEventListener('click', (e) => {
+  if (e.target.closest('#theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+});
 
 function onScroll() {
   $navbar.classList.toggle('scrolled', window.scrollY > 36);

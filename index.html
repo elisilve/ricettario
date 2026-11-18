@@ -4,8 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Ricettario personale: ricette divise per categorie con valori nutrizionali.">
-  <meta name="theme-color" content="#eef0f6" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b0b10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#eef0f6" id="theme-color">
+  <script>
+    // Applica il tema salvato prima di disegnare la pagina (evita il "lampo" di colore)
+    (function () {
+      var t;
+      try { t = localStorage.getItem('ricettario:theme'); } catch (e) {}
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+      document.getElementById('theme-color').content = t === 'dark' ? '#333333' : '#eef0f6';
+    })();
+  </script>
 
   <!-- iPhone: si comporta come un'app quando aggiunta alla schermata Home -->
   <meta name="apple-mobile-web-app-capable" content="yes">
