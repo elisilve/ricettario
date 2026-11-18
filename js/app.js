@@ -101,9 +101,9 @@ const avatar = (item, fallback = '🍽️') => {
 
 const macroChips = (n) => `
   <span class="chips">
-    <i class="chip p">P ${fmt(n.protein)}g</i>
-    <i class="chip c">C ${fmt(n.carbs)}g</i>
-    <i class="chip f">G ${fmt(n.fat)}g</i>
+    <i class="chip p">P ${fmt(n.protein)}gr</i>
+    <i class="chip c">C ${fmt(n.carbs)}gr</i>
+    <i class="chip f">G ${fmt(n.fat)}gr</i>
   </span>`;
 
 /** Badge rossi con gli ingredienti non conteggiati nei valori */
@@ -114,7 +114,7 @@ const missingBadges = (names) =>
 
 /** Riga piccola con i macro: "P 0,5 g · C 2,5 g · G 2,5 g · 31 kcal" */
 const macroLine = (m) =>
-  `<span class="ml p">P ${fmt(m.protein)} g</span> · <span class="ml c">C ${fmt(m.carbs)} g</span> · <span class="ml f">G ${fmt(m.fat)} g</span> · ${Math.round(m.kcal)} kcal`;
+  `<span class="ml p">P ${fmt(m.protein)} gr</span> · <span class="ml c">C ${fmt(m.carbs)} gr</span> · <span class="ml f">G ${fmt(m.fat)} gr</span> · ${Math.round(m.kcal)} kcal`;
 
 // Nelle liste: valori totali della ricetta
 const recipeRow = (r) => {
@@ -441,7 +441,7 @@ function renderRecipe(id) {
             <div class="macro ${k}">
               <span class="dot"></span>
               <span class="macro-name">${label}</span>
-              <span class="macro-val">${fmt(g)} g</span>
+              <span class="macro-val">${fmt(g)} gr</span>
               <span class="macro-pct">${pct(kc)}%</span>
             </div>`).join('')}
         </div>
@@ -931,11 +931,11 @@ function foodSheet(food = null, opts = {}) {
          </div>
        </div>
        <div class="field-grid three">
-         <label class="field macro-field p"><span>Proteine (g)</span>
+         <label class="field macro-field p"><span>Proteine (gr)</span>
            <input class="input" name="protein" inputmode="decimal" placeholder="0" value="${food?.protein ?? ''}"></label>
-         <label class="field macro-field c"><span>Carboidrati (g)</span>
+         <label class="field macro-field c"><span>Carboidrati (gr)</span>
            <input class="input" name="carbs" inputmode="decimal" placeholder="0" value="${food?.carbs ?? ''}"></label>
-         <label class="field macro-field f"><span>Grassi (g)</span>
+         <label class="field macro-field f"><span>Grassi (gr)</span>
            <input class="input" name="fat" inputmode="decimal" placeholder="0" value="${food?.fat ?? ''}"></label>
        </div>
        <label class="field"><span>Calorie (kcal)</span>
