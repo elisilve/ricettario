@@ -16,7 +16,9 @@ export function errorText(e) {
   if (/email not confirmed/i.test(m)) return 'Devi prima confermare l’email: apri il link che ti abbiamo mandato.';
   if (/already registered|already exists/i.test(m)) return 'Esiste già un account con questa email: prova ad accedere.';
   if (/password should be|at least 6/i.test(m)) return 'La password deve avere almeno 6 caratteri.';
-  if (/rate limit|too many|security purposes/i.test(m)) return 'Troppi tentativi: riprova tra qualche minuto.';
+  if (/email rate limit/i.test(m)) return 'Supabase ha raggiunto il limite di email che può mandare (2 all’ora con il servizio gratuito). Riprova più tardi, oppure fatti creare l’account dalla dashboard di Supabase.';
+  if (/security purposes|after \d+ seconds/i.test(m)) return 'Aspetta un minuto prima di riprovare.';
+  if (/rate limit|too many/i.test(m)) return 'Troppi tentativi in poco tempo: riprova tra qualche minuto.';
   if (/valid email|invalid email|unable to validate email/i.test(m)) return 'Controlla l’indirizzo email.';
   if (/same password|different from the old/i.test(m)) return 'La nuova password deve essere diversa da quella vecchia.';
   if (/row-level security|permission|not allowed/i.test(m)) return 'Non hai i permessi per questa operazione.';
