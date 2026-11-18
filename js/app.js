@@ -976,6 +976,12 @@ window.addEventListener('hashchange', router);
 await initImages(); // carica le foto prima di disegnare
 router();
 
+// App pronta: via la schermata di caricamento
+document.body.classList.remove('loading');
+const $splash = document.getElementById('splash');
+$splash.classList.add('hide');
+setTimeout(() => $splash.remove(), 400);
+
 // Service worker: rende l'app installabile e utilizzabile offline.
 // Non lo attiviamo in locale per non avere problemi di cache mentre sviluppi.
 if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) {

@@ -26,10 +26,53 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
 
+  <!-- Scarica tutti i moduli JS in parallelo: l'app parte prima -->
+  <link rel="modulepreload" href="js/app.js">
+  <link rel="modulepreload" href="js/store.js">
+  <link rel="modulepreload" href="js/ui.js">
+  <link rel="modulepreload" href="js/images.js">
+  <link rel="modulepreload" href="js/nutrition.js">
+  <link rel="preload" href="icons/apple-touch-icon.png" as="image">
+
+  <!-- Stile della schermata di caricamento: qui dentro così compare subito,
+       senza aspettare il file CSS -->
+  <style>
+    #splash {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+      background: #eef0f6;
+      transition: opacity .35s ease, visibility .35s;
+    }
+    [data-theme="dark"] #splash { background: #131313; }
+    #splash.hide { opacity: 0; visibility: hidden; }
+    .splash-logo {
+      width: 92px; height: 92px; border-radius: 22px;
+      box-shadow: 0 12px 30px rgba(15, 157, 138, .3);
+      animation: splash-in .5s cubic-bezier(.2, .9, .3, 1.2) both;
+    }
+    .splash-spinner {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 3px solid rgba(15, 157, 138, .18); border-top-color: #0f9d8a;
+      animation: splash-spin .8s linear infinite;
+    }
+    [data-theme="dark"] .splash-spinner { border-color: rgba(31, 184, 162, .2); border-top-color: #1fb8a2; }
+    @keyframes splash-spin { to { transform: rotate(360deg); } }
+    @keyframes splash-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+    /* Finché l'app si carica resta visibile solo la schermata di caricamento
+       (pagina, pulsante +, barra in alto e menu in basso compaiono dopo) */
+    body.loading .view, body.loading .navbar, body.loading .tabbar, body.loading .fab { visibility: hidden; }
+  </style>
+
   <link rel="stylesheet" href="css/style.css">
   <title>Ricettario</title>
 </head>
-<body>
+<body class="loading">
+  <!-- Schermata di caricamento: sparisce appena l'app è pronta (vedi app.js) -->
+  <div id="splash" role="status" aria-label="Caricamento">
+    <img class="splash-logo" src="icons/apple-touch-icon.png" alt="">
+    <div class="splash-spinner"></div>
+  </div>
+
   <!-- Sfondo sfumato che dà profondità all'effetto vetro -->
   <div class="bg" aria-hidden="true">
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
