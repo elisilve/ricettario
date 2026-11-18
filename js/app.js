@@ -4,7 +4,7 @@
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
-import { recipeNutrition, foodKcal } from './nutrition.js';
+import { recipeNutrition, foodKcal, isNegligible } from './nutrition.js';
 
 const $view = document.getElementById('view');
 const $navbar = document.getElementById('navbar');
@@ -485,7 +485,16 @@ function renderRecipe(id) {
 // =============================================================
 //  EDITOR — nuova ricetta / modifica
 // =============================================================
-const UNITS = ['g', 'kg', 'ml', 'l', 'pz', 'cucchiaio', 'cucchiaino', 'tazza', 'pizzico', 'q.b.'];
+// Unità di misura degli ingredienti (menu a tendina: su iPhone niente tastiera)
+const UNITS = ['g', 'ml', 'pizzico', 'q.b.'];
+
+/** Menu delle unità. Mostra anche un valore "vecchio" (es. kg) se l'ingrediente lo usava già,
+ *  e "pz" quando l'alimento della dispensa ha i valori per pezzo */
+const unitOptions = (value, extra = []) => {
+  const opts = [...UNITS, ...extra.filter((u) => !UNITS.includes(u))];
+  if (!opts.includes(value)) opts.push(value);
+  return opts.map((u) => `<option value="${esc(u)}" ${u === value ? 'selected' : ''}>${u ? esc(u) : '—'}</option>`).join('');
+};
 
 const basisLabel = (f) => (f.basis === 'pz' ? 'per 1 pezzo' : 'per 100 g');
 
@@ -498,7 +507,7 @@ const ingredientRow = (i = {}) => `
   <div class="ing-row" data-food-id="${esc(i.foodId || '')}" data-food-snap="${i.food ? esc(JSON.stringify(i.food)) : ''}">
     <div class="ing-fields">
       <input class="input qty" name="qty" inputmode="decimal" placeholder="100" value="${i.qty ?? ''}">
-      <input class="input unit" name="unit" list="units" placeholder="g" value="${esc(i.unit || '')}">
+      <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(i.name ? (i.unit || '') : 'g', i.food?.basis === 'pz' ? ['pz'] : [])}</select>
       <input class="input" name="ing" placeholder="Ingrediente" value="${esc(i.name || '')}" autocomplete="off">
       <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
     </div>
@@ -557,7 +566,6 @@ function renderEditor(id, presetCategory) {
           <p class="hint">Inizia a scrivere: gli alimenti della dispensa compaiono come suggerimenti e i loro valori si calcolano da soli.</p>
           <div id="ing-list">${r.ingredients.map(ingredientRow).join('')}</div>
           <button type="button" class="btn ghost small" id="add-ing">${icon.plus} Aggiungi ingrediente</button>
-          <datalist id="units">${UNITS.map((u) => `<option value="${u}">`).join('')}</datalist>
         </div>
 
         <div class="card glass">
@@ -610,7 +618,13 @@ function renderEditor(id, presetCategory) {
     row.dataset.declined = '';
     row.querySelector('[name=ing]').value = food.name;
     const unit = row.querySelector('[name=unit]');
-    if (setUnit && !unit.value.trim()) unit.value = food.basis === 'pz' ? 'pz' : 'g';
+    if (food.basis === 'pz') {
+      // alimento "per pezzo": aggiungo l'opzione pz e la seleziono
+      if (![...unit.options].some((o) => o.value === 'pz')) unit.insertAdjacentHTML('beforeend', '<option value="pz">pz</option>');
+      if (setUnit) unit.value = 'pz';
+    } else if (setUnit && !['g', 'ml', 'pizzico', 'q.b.'].includes(unit.value)) {
+      unit.value = 'g';
+    }
   };
   const unlink = (row) => { row.dataset.foodId = ''; row.dataset.foodSnap = ''; };
 
@@ -626,7 +640,8 @@ function renderEditor(id, presetCategory) {
       const $calc = row.querySelector('.ing-calc');
       if (m) $calc.innerHTML = macroLine(m);
       else if (ing.food && ing.qty == null) $calc.innerHTML = `<span class="muted">Dalla dispensa · inserisci la quantità</span>`;
-      else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa g, ml o ${ing.food.basis === 'pz' ? 'pz' : 'kg/l'}</span>`;
+      else if (isNegligible(ing)) $calc.innerHTML = ing.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
+      else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${ing.food.basis === 'pz' ? 'pz' : 'g o ml'}</span>`;
       else if (ing.name && row.dataset.declined) $calc.innerHTML = '<span class="warn">Non conteggiato nei valori</span>';
       else $calc.innerHTML = ing.name ? '<span class="muted">Non in dispensa</span>' : '';
     });
@@ -654,6 +669,7 @@ function renderEditor(id, presetCategory) {
   const askToAdd = async (row) => {
     const name = row.querySelector('[name=ing]').value.trim();
     if (!name || row.dataset.foodId || row.dataset.declined === name || submitting) return;
+    if (isNegligible(readRow(row))) return; // sale q.b., un pizzico di pepe: non serve chiedere
     if (!document.body.contains(row)) return;
     const yes = await confirmSheet(
       `“${name}” non è nella dispensa. Vuoi aggiungerlo con i suoi valori nutrizionali?`,

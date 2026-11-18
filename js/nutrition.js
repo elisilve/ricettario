@@ -50,6 +50,9 @@ export function ingredientMacros(ing, factor = 1) {
 
 export const isLinked = (ing) => !!resolveFood(ing);
 
+/** "Un pizzico" o "q.b.": quantità trascurabili, non entrano nel calcolo e non vengono segnalate */
+export const isNegligible = (ing) => ['pizzico', 'q.b.', 'qb'].includes((ing.unit || '').trim().toLowerCase());
+
 const add = (a, b) => ({
   protein: a.protein + b.protein, carbs: a.carbs + b.carbs, fat: a.fat + b.fat, kcal: a.kcal + b.kcal,
 });
@@ -84,7 +87,7 @@ export function recipeNutrition(r, portions = r.servings || 1) {
 
   const missing = legacy
     ? []
-    : r.ingredients.filter((i, idx) => i.name && !perIngredient[idx]).map((i) => i.name);
+    : r.ingredients.filter((i, idx) => i.name && !perIngredient[idx] && !isNegligible(i)).map((i) => i.name);
 
   return { auto, legacy, total, perServing: scale(total, 1 / portions), perIngredient, missing };
 }

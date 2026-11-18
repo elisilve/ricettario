@@ -353,8 +353,8 @@ select.input {
 .step-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px; }
 .ing-row { margin-bottom: 10px; }
 .ing-fields { display: flex; gap: 6px; align-items: flex-start; }
-.ing-row .qty { width: 72px; flex-shrink: 0; }
-.ing-row .unit { width: 74px; flex-shrink: 0; }
+.ing-row .qty { width: 66px; flex-shrink: 0; }
+.ing-row .unit { width: 98px; flex-shrink: 0; padding-right: 26px; background-position: right 8px center; background-size: 15px; }
 .step-row .step-n { margin-top: 9px; }
 .remove {
   width: 30px; height: 46px; flex-shrink: 0; display: grid; place-items: center; color: var(--text-3);
