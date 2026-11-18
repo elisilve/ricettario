@@ -376,7 +376,11 @@ select.input {
 #modal-root.open { pointer-events: auto; }
 #modal-root.open .backdrop { opacity: 1; }
 #modal-root.open .sheet { transform: none; }
-.grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--text-3); margin: 0 auto 12px; }
+/* Zona del trattino: area ampia da afferrare per trascinare giù il pop-up */
+.sheet-handle { margin: -8px -18px 4px; padding: 10px 0 8px; cursor: grab; touch-action: none; }
+.sheet-handle:active { cursor: grabbing; }
+.grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--text-3); margin: 0 auto; }
+.sheet-title { touch-action: none; user-select: none; -webkit-user-select: none; }
 .sheet-title { margin: 4px 0 14px; font-size: 20px; text-align: center; }
 .sheet-msg { text-align: center; color: var(--text-2); margin: 6px 8px 18px; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
@@ -533,3 +537,7 @@ body.no-tabbar .tabbar { display: none; }
 }
 .add-pantry svg { width: 14px; height: 14px; stroke-width: 2.6; }
 .add-pantry:active { opacity: .6; }
+
+/* Pop-up aperto: la pagina sotto non scorre */
+html.sheet-open, html.sheet-open body { overflow: hidden; }
+.sheet { overscroll-behavior: contain; }

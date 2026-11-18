@@ -60,10 +60,12 @@ export function openSheet(html, onMount, onClose) {
   root.innerHTML = `
     <div class="backdrop" data-close></div>
     <div class="sheet glass" role="dialog" aria-modal="true">
-      <div class="grabber"></div>
+      <div class="sheet-handle" aria-hidden="true"><div class="grabber"></div></div>
       ${html}
     </div>`;
   requestAnimationFrame(() => root.classList.add('open'));
+  // Con il pop-up aperto la pagina sotto resta ferma
+  document.documentElement.classList.add('sheet-open');
   let closed = false;
   const close = () => {
     if (closed) return;
@@ -71,13 +73,105 @@ export function openSheet(html, onMount, onClose) {
     // Se nel frattempo si è aperto un altro pop-up, non lo tocchiamo
     if (mine === sheetSeq) {
       root.classList.remove('open');
+      document.documentElement.classList.remove('sheet-open');
       setTimeout(() => { if (mine === sheetSeq) root.innerHTML = ''; }, 250);
     }
     onClose?.();
   };
   root.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', close));
+  enableDragToClose(root.querySelector('.sheet'), root.querySelector('.backdrop'), close);
   onMount?.(root.querySelector('.sheet'), close);
   return close;
+}
+
+/**
+ * Trascina verso il basso per chiudere, come i pop-up di iOS.
+ * Si può trascinare dal trattino o dal titolo, oppure da un punto qualsiasi
+ * del pop-up quando il suo contenuto è già in cima (non dai campi di testo).
+ */
+function enableDragToClose(sheet, backdrop, close) {
+  const FIELDS = 'input, textarea, select, [contenteditable]';
+  let startY = 0, dy = 0, eligible = false, dragging = false;
+  let samples = []; // ultime posizioni del dito, per misurare la velocità del gesto
+
+  const start = (y, target) => {
+    startY = y; dy = 0; dragging = false; samples = [{ y, t: Date.now() }];
+    const fromHandle = !!target.closest('.sheet-handle, .sheet-title');
+    eligible = fromHandle || (sheet.scrollTop <= 0 && !target.closest(FIELDS));
+  };
+
+  const move = (y, e) => {
+    if (!eligible) return;
+    dy = y - startY;
+    samples.push({ y, t: Date.now() });
+    if (samples.length > 6) samples.shift();
+    if (!dragging) {
+      if (dy > 6) {
+        dragging = true;
+        document.activeElement?.blur?.(); // chiude la tastiera mentre trascini
+        sheet.style.transition = 'none';
+        backdrop.style.transition = 'none';
+      } else if (dy < -4) {
+        eligible = false; // stai scorrendo verso l'alto: lascio scorrere il contenuto
+        return;
+      } else return;
+    }
+    e.preventDefault();
+    const t = Math.max(0, dy);
+    sheet.style.transform = `translateY(${t}px)`;
+    backdrop.style.opacity = String(Math.max(0, 1 - t / (sheet.offsetHeight || 1)));
+  };
+
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    // velocità negli ultimi istanti del gesto (px al millisecondo): un "colpetto" verso il basso chiude
+    const first = samples[0], last = samples[samples.length - 1];
+    const speed = (last.y - first.y) / Math.max(1, last.t - first.t);
+    if (dy > sheet.offsetHeight * 0.25 || (dy > 30 && speed > 0.35)) {
+      // chiudi: il pop-up scivola via dalla posizione in cui l'hai lasciato
+      sheet.style.transition = 'transform .22s ease-out';
+      sheet.style.transform = 'translateY(110%)';
+      backdrop.style.transition = 'opacity .22s';
+      backdrop.style.opacity = '0';
+      close();
+    } else {
+      // torna su con un piccolo rimbalzo
+      sheet.style.transition = 'transform .3s cubic-bezier(.2, .9, .25, 1)';
+      sheet.style.transform = '';
+      backdrop.style.transition = 'opacity .3s';
+      backdrop.style.opacity = '';
+    }
+  };
+
+  // Sullo sfondo scuro niente scroll: né col dito né con trackpad/rotellina
+  const block = (e) => e.preventDefault();
+  backdrop.addEventListener('touchmove', block, { passive: false });
+  backdrop.addEventListener('wheel', block, { passive: false });
+  // Sul pop-up la rotellina scorre solo il suo contenuto (se ce n'è da scorrere)
+  sheet.addEventListener('wheel', (e) => {
+    const canScroll = sheet.scrollHeight > sheet.clientHeight;
+    const atTop = sheet.scrollTop <= 0 && e.deltaY < 0;
+    const atBottom = sheet.scrollTop + sheet.clientHeight >= sheet.scrollHeight - 1 && e.deltaY > 0;
+    if (!canScroll || atTop || atBottom) e.preventDefault();
+  }, { passive: false });
+
+  // iPhone: eventi touch (preventDefault blocca lo scroll della pagina durante il trascinamento)
+  sheet.addEventListener('touchstart', (e) => start(e.touches[0].clientY, e.target), { passive: true });
+  sheet.addEventListener('touchmove', (e) => move(e.touches[0].clientY, e), { passive: false });
+  sheet.addEventListener('touchend', end);
+  sheet.addEventListener('touchcancel', end);
+
+  // Computer (mouse): solo dal trattino/titolo
+  sheet.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || !e.target.closest('.sheet-handle, .sheet-title')) return;
+    e.preventDefault(); // niente selezione del testo mentre trascini col mouse
+    start(e.clientY, e.target);
+    const onMove = (ev) => move(ev.clientY, ev);
+    const onUp = () => { end(); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
 }
 
 /** Conferma in stile iOS. Restituisce una Promise<boolean> */
