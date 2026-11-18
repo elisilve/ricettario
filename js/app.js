@@ -526,10 +526,9 @@ function renderRecipe(id) {
 //  EDITOR — nuova ricetta / modifica
 // =============================================================
 // Unità di misura degli ingredienti (menu a tendina: su iPhone niente tastiera)
-const UNITS = ['gr', 'ml', 'pizzico', 'q.b.'];
+const UNITS = ['gr', 'ml', 'pz', 'pizzico', 'q.b.']; // pz = pezzi (es. 2 uova)
 
-/** Menu delle unità. Mostra anche un valore "vecchio" (es. kg) se l'ingrediente lo usava già,
- *  e "pz" quando l'alimento della dispensa ha i valori per pezzo */
+/** Menu delle unità. Mostra anche un valore "vecchio" (es. kg) se l'ingrediente lo usava già */
 const unitOptions = (value, extra = []) => {
   const opts = [...UNITS, ...extra.filter((u) => !UNITS.includes(u))];
   if (!opts.includes(value)) opts.push(value);
@@ -670,13 +669,9 @@ function renderEditor(id, presetCategory) {
     row.dataset.declined = '';
     row.querySelector('[name=ing]').value = food.name;
     const unit = row.querySelector('[name=unit]');
-    if (food.basis === 'pz') {
-      // alimento "per pezzo": aggiungo l'opzione pz e la seleziono
-      if (![...unit.options].some((o) => o.value === 'pz')) unit.insertAdjacentHTML('beforeend', '<option value="pz">pz</option>');
-      if (setUnit) unit.value = 'pz';
-    } else if (setUnit && !UNITS.includes(unit.value)) {
-      unit.value = 'gr';
-    }
+    // alimento della dispensa "per 1 pezzo" → pz; "per 100 gr" → gr
+    if (setUnit && food.basis === 'pz') unit.value = 'pz';
+    else if (setUnit && (unit.value === 'pz' || !UNITS.includes(unit.value))) unit.value = 'gr';
   };
   const unlink = (row) => { row.dataset.foodId = ''; row.dataset.foodSnap = ''; };
 
@@ -693,6 +688,8 @@ function renderEditor(id, presetCategory) {
       if (m) $calc.innerHTML = macroLine(m);
       else if (ing.food && ing.qty == null) $calc.innerHTML = `<span class="muted">Dalla dispensa · inserisci la quantità</span>`;
       else if (isNegligible(ing)) $calc.innerHTML = ing.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
+      else if (ing.food && ing.food.basis !== 'pz' && (ing.unit || '').toLowerCase() === 'pz')
+        $calc.innerHTML = '<span class="warn">Per contarlo a pezzi, in Dispensa imposta questo alimento “per 1 pezzo” (oppure usa gr o ml)</span>';
       else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${ing.food.basis === 'pz' ? 'pz' : 'gr o ml'}</span>`;
       else if (ing.name) {
         // Non in dispensa: si può aggiungere in qualsiasi momento, anche modificando la ricetta dopo
