@@ -15,7 +15,9 @@ export const foodKcal = (f) => (f.kcal != null && f.kcal !== '' ? Number(f.kcal)
 
 /** Valori dell'alimento collegato: dalla dispensa (aggiornati) o la copia salvata nella ricetta */
 export function resolveFood(ing) {
-  const live = store.getFood(ing.foodId);
+  // 1) alimento collegato  2) se non è collegato, un alimento della dispensa con lo stesso nome
+  //    (es. aggiunto in dispensa dopo aver salvato la ricetta)  3) la copia salvata nella ricetta
+  const live = store.getFood(ing.foodId) || (!ing.food && ing.name ? store.findFoodByName(ing.name) : null);
   if (live) return live;
   return ing.food || null;
 }

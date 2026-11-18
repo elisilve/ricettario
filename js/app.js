@@ -689,10 +689,10 @@ function renderEditor(id, presetCategory) {
   const openAddFood = (row, onCancel) => {
     foodSheet(null, {
       name: row.querySelector('[name=ing]').value.trim(),
-      onSaved: (food) => {
+      onSaved: (food, { existing } = {}) => {
         link(row, food, true);
         updateCalc();
-        toast(`${food.name} aggiunto alla dispensa`);
+        toast(existing ? `${food.name} era già nella dispensa: collegato` : `${food.name} aggiunto alla dispensa`);
       },
       onCancel,
     });
@@ -757,6 +757,13 @@ function renderEditor(id, presetCategory) {
   });
 
   form.servings.addEventListener('input', updateCalc);
+
+  // All'apertura collego gli ingredienti che nel frattempo sono stati aggiunti alla dispensa
+  rows().forEach((row) => {
+    if (row.dataset.foodId) return;
+    const match = store.findFoodByName(row.querySelector('[name=ing]').value);
+    if (match) link(row, match, false);
+  });
   updateCalc();
 
   // ----- Righe dinamiche -----
@@ -930,7 +937,15 @@ function foodSheet(food = null, opts = {}) {
         const name = form.name.value.trim();
         if (!name) return form.name.focus();
         const other = store.findFoodByName(name);
-        if (other && other.id !== food?.id) return toast('C’è già un alimento con questo nome');
+        if (other && other.id !== food?.id) {
+          // Dalla ricetta: invece di dare errore collego l'alimento che c'è già
+          if (opts.onSaved) {
+            saved = true;
+            close();
+            return opts.onSaved(other, { existing: true });
+          }
+          return toast('C’è già un alimento con questo nome');
+        }
         const id = store.saveFood({
           id: food?.id, name, basis, ...macros(),
           kcal: form.kcal.value.trim() ? num(form.kcal.value) : null,
