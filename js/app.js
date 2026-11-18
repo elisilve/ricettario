@@ -61,8 +61,9 @@ function setNav({ title = '', back = null, right = '' }) {
   $navLeft.innerHTML = back
     ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>`
     : '';
-  // Il pulsante sole/luna sta sempre a destra, prima degli altri pulsanti
-  $navRight.innerHTML = themeButton() + right;
+  // In ogni schermata: sole/luna, poi i pulsanti della pagina, poi l'account
+  $navRight.innerHTML = themeButton() + right +
+    `<button class="nav-btn icon" id="user-btn" aria-label="Account">${icon.user}</button>`;
 }
 
 // ---------- Tema chiaro / scuro ----------
@@ -87,7 +88,14 @@ function setTheme(theme) {
 
 $navRight.addEventListener('click', (e) => {
   if (e.target.closest('#theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  if (e.target.closest('#user-btn')) openAccount();
 });
+
+/** Icona utente: con l'account apre il pannello Account, altrimenti il backup */
+function openAccount() {
+  if (cloud.enabled && cloud.user) accountSheet({ onSwitched: afterBookChange, onBackup: settingsSheet });
+  else settingsSheet();
+}
 
 function onScroll() {
   $navbar.classList.toggle('scrolled', window.scrollY > 36);
@@ -155,7 +163,6 @@ function renderHome() {
   setTab('ricette');
   setNav({
     title: 'Ricette',
-    right: `<button class="nav-btn icon" id="settings" aria-label="Impostazioni">${icon.gear}</button>`,
   });
 
   $view.innerHTML = `
@@ -205,10 +212,6 @@ function renderHome() {
   };
 
   $q.addEventListener('input', draw);
-  document.getElementById('settings').onclick = () =>
-    cloud.enabled && cloud.user
-      ? accountSheet({ onSwitched: afterBookChange, onBackup: settingsSheet })
-      : settingsSheet();
   draw();
 }
 

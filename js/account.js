@@ -229,7 +229,6 @@ export function accountSheet({ onSwitched, onBackup }) {
                 <button type="button" data-role="editor" class="${inviteRole === 'editor' ? 'on' : ''}">Vedere e modificare</button>
               </div>
               <button class="btn primary full" type="submit">Invita</button>
-              <p class="hint">Dopo l'invito tocca <strong>Invia</strong> per mandarle il link (WhatsApp, Messaggi, Mail…). Quando crea l'account con questa email entra da sola nel tuo ricettario.</p>
             </form>` : `
             <p class="hint">Sei in questo ricettario come: <strong>${ROLE_LABEL[b.role]}</strong>.</p>
             <button type="button" class="btn ghost full danger-text" id="leave">Esci da questo ricettario</button>`}
@@ -315,7 +314,7 @@ export function accountSheet({ onSwitched, onBackup }) {
             try {
               await cloud.invite(email, inviteRole);
               await load();
-              toast('Invito creato: ora tocca “Invia” per mandarglielo');
+              toast('Invito creato');
             } catch (err) { toast(errorText(err)); }
           };
         }
