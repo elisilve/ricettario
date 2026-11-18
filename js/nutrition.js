@@ -55,32 +55,36 @@ const add = (a, b) => ({
 });
 const scale = (a, k) => ({ protein: a.protein * k, carbs: a.carbs * k, fat: a.fat * k, kcal: a.kcal * k });
 
+const hasValues = (n) => !!n && ['protein', 'carbs', 'fat', 'kcal'].some((k) => Number(n[k]) > 0);
+
 /**
  * Valori della ricetta per un certo numero di porzioni.
- *  - auto: true se almeno un ingrediente è collegato alla dispensa (somma degli ingredienti)
- *  - altrimenti si usano i valori inseriti a mano (per porzione) × porzioni
- * Restituisce { auto, total, perServing, perIngredient[], missing[] }
+ *  - di regola sono la somma degli ingredienti collegati alla dispensa
+ *  - legacy: ricette create prima della dispensa, con valori inseriti a mano (per porzione)
+ *    e nessun ingrediente collegato, continuano a usare quei valori
+ * Restituisce { auto, legacy, total, perServing, perIngredient[], missing[] }
+ *  missing = nomi degli ingredienti non conteggiati
  */
 export function recipeNutrition(r, portions = r.servings || 1) {
   const factor = portions / (r.servings || 1);
   const auto = r.ingredients.some(isLinked);
   const perIngredient = r.ingredients.map((i) => ingredientMacros(i, factor));
+  const legacy = !auto && hasValues(r.nutrition);
 
   let total;
-  if (auto) {
-    total = perIngredient.reduce((acc, m) => (m ? add(acc, m) : acc), { ...ZERO });
-  } else {
-    const n = r.nutrition || ZERO;
+  if (legacy) {
+    const n = r.nutrition;
     total = scale(
       { protein: +n.protein || 0, carbs: +n.carbs || 0, fat: +n.fat || 0, kcal: +n.kcal || 0 },
       portions
     );
+  } else {
+    total = perIngredient.reduce((acc, m) => (m ? add(acc, m) : acc), { ...ZERO });
   }
 
-  // Ingredienti non conteggiati (non in dispensa, o unità non convertibile)
-  const missing = auto
-    ? r.ingredients.filter((i, idx) => !perIngredient[idx] && i.qty != null && i.qty !== '').map((i) => i.name)
-    : [];
+  const missing = legacy
+    ? []
+    : r.ingredients.filter((i, idx) => i.name && !perIngredient[idx]).map((i) => i.name);
 
-  return { auto, total, perServing: scale(total, 1 / portions), perIngredient, missing };
+  return { auto, legacy, total, perServing: scale(total, 1 / portions), perIngredient, missing };
 }

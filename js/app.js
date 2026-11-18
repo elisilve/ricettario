@@ -106,6 +106,12 @@ const macroChips = (n) => `
     <i class="chip f">G ${fmt(n.fat)}g</i>
   </span>`;
 
+/** Badge rossi con gli ingredienti non conteggiati nei valori */
+const missingBadges = (names) =>
+  names.length
+    ? `<div class="missing">${names.map((n) => `<span class="badge-miss">${icon.alert} ${esc(n)} · non conteggiato</span>`).join('')}</div>`
+    : '';
+
 /** Riga piccola con i macro: "P 0,5 g · C 2,5 g · G 2,5 g · 31 kcal" */
 const macroLine = (m) =>
   `<span class="ml p">P ${fmt(m.protein)} g</span> · <span class="ml c">C ${fmt(m.carbs)} g</span> · <span class="ml f">G ${fmt(m.fat)} g</span> · ${Math.round(m.kcal)} kcal`;
@@ -432,9 +438,9 @@ function renderRecipe(id) {
           <span class="ps-label">Per porzione</span>
           <span class="ps-values"><strong>${Math.round(ps.kcal)} kcal</strong> · ${macroLine({ ...ps, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
         </div>` : ''}
-      ${nut.auto ? `
-        <p class="nut-note">${icon.basket} Calcolati dagli alimenti della dispensa${
-          nut.missing.length ? `<br>Non conteggiati: ${esc(nut.missing.join(', '))}` : ''}</p>` : ''}`;
+      ${nut.auto ? `<p class="nut-note">${icon.basket} Calcolati dagli alimenti della dispensa</p>` : ''}
+      ${nut.legacy ? `<p class="nut-note">Valori inseriti a mano. Collega gli ingredienti alla dispensa per calcolarli in automatico.</p>` : ''}
+      ${missingBadges(nut.missing)}`;
   };
 
   // Ingredienti: quantità e macro si ricalcolano con le porzioni
@@ -556,21 +562,7 @@ function renderEditor(id, presetCategory) {
 
         <div class="card glass">
           <h2 class="card-title">Valori nutrizionali</h2>
-          <div id="nut-auto" hidden></div>
-          <div id="nut-manual" class="form-stack">
-            <p class="hint">Nessun ingrediente è collegato alla dispensa: inserisci i valori <strong>per porzione</strong>.</p>
-            <div class="field-grid three">
-              <label class="field macro-field p"><span>Proteine (g)</span>
-                <input class="input" name="protein" inputmode="decimal" placeholder="0" value="${r.nutrition.protein}"></label>
-              <label class="field macro-field c"><span>Carboidrati (g)</span>
-                <input class="input" name="carbs" inputmode="decimal" placeholder="0" value="${r.nutrition.carbs}"></label>
-              <label class="field macro-field f"><span>Grassi (g)</span>
-                <input class="input" name="fat" inputmode="decimal" placeholder="0" value="${r.nutrition.fat}"></label>
-            </div>
-            <label class="field"><span>Calorie (kcal)</span>
-              <input class="input" name="kcal" inputmode="decimal" placeholder="Calcolate in automatico" value="${r.nutrition.kcal}"></label>
-            <p class="hint" id="kcal-hint"></p>
-          </div>
+          <div id="nut-auto"></div>
         </div>
 
         <div class="card glass">
@@ -591,9 +583,8 @@ function renderEditor(id, presetCategory) {
   const form = document.getElementById('recipe-form');
   const $ing = document.getElementById('ing-list');
   const $steps = document.getElementById('step-list');
-  const $hint = document.getElementById('kcal-hint');
   const $auto = document.getElementById('nut-auto');
-  const $manual = document.getElementById('nut-manual');
+  let submitting = false;
   const picker = iconPicker(document.getElementById('recipe-icon'), { emoji: r.emoji || '🍽️', photo: editing?.photo });
 
   // ----- Lettura degli ingredienti dal form -----
@@ -612,11 +603,11 @@ function renderEditor(id, presetCategory) {
   };
   const rows = () => [...$ing.querySelectorAll('.ing-row')];
   const servings = () => Math.max(1, Math.round(num(form.servings.value)) || 1);
-  const manualMacros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
 
   const link = (row, food, setUnit) => {
     row.dataset.foodId = food.id;
     row.dataset.foodSnap = '';
+    row.dataset.declined = '';
     row.querySelector('[name=ing]').value = food.name;
     const unit = row.querySelector('[name=unit]');
     if (setUnit && !unit.value.trim()) unit.value = food.basis === 'pz' ? 'pz' : 'g';
@@ -625,7 +616,8 @@ function renderEditor(id, presetCategory) {
 
   // ----- Calcolo in tempo reale -----
   const updateCalc = () => {
-    const draft = { servings: servings(), ingredients: rows().map(readRow), nutrition: { ...manualMacros(), kcal: num(form.kcal.value) } };
+    // editing?.nutrition: valori inseriti a mano nelle ricette create prima della dispensa
+    const draft = { servings: servings(), ingredients: rows().map(readRow), nutrition: editing?.nutrition };
     const nut = recipeNutrition(draft);
 
     rows().forEach((row, idx) => {
@@ -635,32 +627,51 @@ function renderEditor(id, presetCategory) {
       if (m) $calc.innerHTML = macroLine(m);
       else if (ing.food && ing.qty == null) $calc.innerHTML = `<span class="muted">Dalla dispensa · inserisci la quantità</span>`;
       else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa g, ml o ${ing.food.basis === 'pz' ? 'pz' : 'kg/l'}</span>`;
-      else $calc.innerHTML = ing.name && store.getPantry().length ? '<span class="muted">Non in dispensa</span>' : '';
+      else if (ing.name && row.dataset.declined) $calc.innerHTML = '<span class="warn">Non conteggiato nei valori</span>';
+      else $calc.innerHTML = ing.name ? '<span class="muted">Non in dispensa</span>' : '';
     });
 
-    $auto.hidden = !nut.auto;
-    $manual.hidden = nut.auto;
-    if (nut.auto) {
-      const t = nut.total, ps = nut.perServing;
-      $auto.innerHTML = `
-        <div class="auto-total">
-          <span class="at-label">Totale ricetta</span>
-          <span class="at-kcal">${Math.round(t.kcal)} <small>kcal</small></span>
-          <span class="at-macros">${macroLine({ ...t, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
-        </div>
-        ${draft.servings > 1 ? `
-          <div class="per-serving">
-            <span class="ps-label">Per porzione</span>
-            <span class="ps-values"><strong>${Math.round(ps.kcal)} kcal</strong> · ${macroLine({ ...ps, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
-          </div>` : ''}
-        <p class="hint">${icon.basket} Calcolati dagli ingredienti collegati alla dispensa.</p>`;
-    } else {
-      const k = kcalFromMacros(manualMacros());
-      $hint.innerHTML = k
-        ? `Dai macro risultano circa <strong>${k} kcal</strong>. ${form.kcal.value ? '' : 'Se lasci vuoto il campo userò questo valore.'}`
-        : 'Inserisci i macro: le calorie si calcolano da sole (oppure scrivile tu).';
-    }
+    const t = nut.total, ps = nut.perServing;
+    $auto.innerHTML = `
+      <div class="auto-total">
+        <span class="at-label">Totale ricetta</span>
+        <span class="at-kcal">${Math.round(t.kcal)} <small>kcal</small></span>
+        <span class="at-macros">${macroLine({ ...t, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+      </div>
+      ${draft.servings > 1 ? `
+        <div class="per-serving">
+          <span class="ps-label">Per porzione</span>
+          <span class="ps-values"><strong>${Math.round(ps.kcal)} kcal</strong> · ${macroLine({ ...ps, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+        </div>` : ''}
+      ${nut.legacy
+        ? `<p class="hint">Valori inseriti a mano in precedenza. Collega gli ingredienti alla dispensa per calcolarli in automatico.</p>`
+        : `<p class="hint">${icon.basket} Calcolati dagli ingredienti presenti nella dispensa.</p>`}
+      ${missingBadges(nut.missing)}`;
     return nut;
+  };
+
+  // ----- Ingrediente non in dispensa: chiedi se aggiungerlo -----
+  const askToAdd = async (row) => {
+    const name = row.querySelector('[name=ing]').value.trim();
+    if (!name || row.dataset.foodId || row.dataset.declined === name || submitting) return;
+    if (!document.body.contains(row)) return;
+    const yes = await confirmSheet(
+      `“${name}” non è nella dispensa. Vuoi aggiungerlo con i suoi valori nutrizionali?`,
+      { title: 'Nuovo alimento', okText: 'Sì, aggiungilo', cancelText: 'No, inseriscilo senza valori' }
+    );
+    if (!document.body.contains(row)) return;
+    const decline = () => { row.dataset.declined = name; updateCalc(); };
+    if (!yes) return decline();
+    // Si apre il pop-up dell'alimento; salvato quello, si torna alla ricetta con l'ingrediente collegato
+    foodSheet(null, {
+      name,
+      onSaved: (food) => {
+        link(row, food, true);
+        updateCalc();
+        toast(`${food.name} aggiunto alla dispensa`);
+      },
+      onCancel: decline,
+    });
   };
 
   // ----- Suggerimenti dalla dispensa -----
@@ -687,6 +698,12 @@ function renderEditor(id, presetCategory) {
     }
     updateCalc();
   });
+  $ing.addEventListener('change', (e) => {
+    if (e.target.name !== 'ing') return;
+    const row = e.target.closest('.ing-row');
+    // piccola attesa: se hai toccato un suggerimento o "Salva", non serve chiedere
+    setTimeout(() => askToAdd(row), 250);
+  });
   $ing.addEventListener('focusin', (e) => {
     if (e.target.name === 'ing') showSuggest(e.target.closest('.ing-row'));
   });
@@ -709,7 +726,7 @@ function renderEditor(id, presetCategory) {
     if (!qty.value) qty.focus();
   });
 
-  ['protein', 'carbs', 'fat', 'kcal', 'servings'].forEach((f) => form[f].addEventListener('input', updateCalc));
+  form.servings.addEventListener('input', updateCalc);
   updateCalc();
 
   // ----- Righe dinamiche -----
@@ -740,9 +757,9 @@ function renderEditor(id, presetCategory) {
       form.name.focus();
       return toast('Dai un nome alla ricetta');
     }
+    submitting = true;
     const nut = updateCalc();
     const { emoji, photo } = await picker.commit();
-    const m = manualMacros();
     const round1 = (x) => Math.round(x * 10) / 10;
     const recipe = {
       id: editing?.id,
@@ -755,10 +772,10 @@ function renderEditor(id, presetCategory) {
       ingredients: rows().map(readRow).filter((i) => i.name),
       steps: [...$steps.querySelectorAll('textarea')].map((t) => t.value.trim()).filter(Boolean),
       notes: form.notes.value.trim(),
-      // Sempre per porzione: calcolati dalla dispensa oppure inseriti a mano
-      nutrition: nut.auto
-        ? Object.fromEntries(Object.entries(nut.perServing).map(([k, v]) => [k, round1(v)]))
-        : { ...m, kcal: form.kcal.value.trim() ? num(form.kcal.value) : kcalFromMacros(m) },
+      // Sempre per porzione (le ricette vecchie senza dispensa tengono i valori inseriti a mano)
+      nutrition: nut.legacy
+        ? editing.nutrition
+        : Object.fromEntries(Object.entries(nut.perServing).map(([k, v]) => [k, round1(v)])),
     };
     const savedId = store.saveRecipe(recipe);
     toast(editing ? 'Modifiche salvate' : 'Ricetta salvata');
@@ -825,12 +842,17 @@ function renderPantry() {
   draw();
 }
 
-function foodSheet(food = null) {
+/**
+ * Pop-up alimento. Dalla dispensa: food = alimento da modificare (o null).
+ * Dall'editor ricetta: opts = { name, onSaved(food), onCancel() } — si resta sulla ricetta.
+ */
+function foodSheet(food = null, opts = {}) {
   let basis = food?.basis || 'g';
+  let saved = false;
   openSheet(
     `<h3 class="sheet-title">${food ? 'Modifica alimento' : 'Nuovo alimento'}</h3>
      <form id="food-form" class="form">
-       <input class="input" name="name" placeholder="Nome (es. Zucca)" value="${esc(food?.name || '')}" required>
+       <input class="input" name="name" placeholder="Nome (es. Zucca)" value="${esc(food?.name || opts.name || '')}" required>
        <div class="field">
          <span>I valori si riferiscono a</span>
          <div class="segmented" id="basis">
@@ -879,11 +901,13 @@ function foodSheet(food = null) {
         if (!name) return form.name.focus();
         const other = store.findFoodByName(name);
         if (other && other.id !== food?.id) return toast('C’è già un alimento con questo nome');
-        store.saveFood({
+        const id = store.saveFood({
           id: food?.id, name, basis, ...macros(),
           kcal: form.kcal.value.trim() ? num(form.kcal.value) : null,
         });
+        saved = true;
         close();
+        if (opts.onSaved) return opts.onSaved(store.getFood(id)); // torna alla ricetta, senza ricaricarla
         toast(food ? 'Alimento aggiornato' : 'Aggiunto alla dispensa');
         router();
       };
@@ -899,7 +923,9 @@ function foodSheet(food = null) {
           router();
         }
       });
-    }
+      if (opts.name) setTimeout(() => form.protein.focus(), 350);
+    },
+    () => { if (!saved) opts.onCancel?.(); }
   );
 }
 

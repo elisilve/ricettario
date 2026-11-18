@@ -34,6 +34,7 @@ export const icon = {
   camera: svg('<path d="M4 8.5A1.5 1.5 0 015.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0120 8.5v9a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 17.5z"/><circle cx="12" cy="13" r="3.5"/>'),
   book: svg('<path d="M5 4.5h10.5A2.5 2.5 0 0118 7v13H7.5A2.5 2.5 0 015 17.5z"/><path d="M5 17.5A2.5 2.5 0 017.5 15H18M9 8.5h5"/>'),
   basket: svg('<path d="M3.5 9.5h17l-1.6 9a2 2 0 01-2 1.6H7.1a2 2 0 01-2-1.6z"/><path d="M8.5 9.5L11 4M15.5 9.5L13 4M9.5 13.5v3M14.5 13.5v3"/>'),
+  alert: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>', 'width="13" height="13" stroke-width="2.4"'),
   sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'),
   moon: svg('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
@@ -50,8 +51,12 @@ export function toast(msg) {
 }
 
 // ---------- Modale (bottom sheet) ----------
-export function openSheet(html, onMount) {
+let sheetSeq = 0; // serve ad aprire un pop-up subito dopo averne chiuso un altro
+
+/** onClose: chiamata quando il pop-up si chiude (in qualsiasi modo) */
+export function openSheet(html, onMount, onClose) {
   const root = document.getElementById('modal-root');
+  const mine = ++sheetSeq;
   root.innerHTML = `
     <div class="backdrop" data-close></div>
     <div class="sheet glass" role="dialog" aria-modal="true">
@@ -59,9 +64,16 @@ export function openSheet(html, onMount) {
       ${html}
     </div>`;
   requestAnimationFrame(() => root.classList.add('open'));
+  let closed = false;
   const close = () => {
-    root.classList.remove('open');
-    setTimeout(() => (root.innerHTML = ''), 250);
+    if (closed) return;
+    closed = true;
+    // Se nel frattempo si è aperto un altro pop-up, non lo tocchiamo
+    if (mine === sheetSeq) {
+      root.classList.remove('open');
+      setTimeout(() => { if (mine === sheetSeq) root.innerHTML = ''; }, 250);
+    }
+    onClose?.();
   };
   root.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', close));
   onMount?.(root.querySelector('.sheet'), close);
@@ -69,19 +81,21 @@ export function openSheet(html, onMount) {
 }
 
 /** Conferma in stile iOS. Restituisce una Promise<boolean> */
-export function confirmSheet(message, { okText = 'Conferma', danger = false } = {}) {
+export function confirmSheet(message, { okText = 'Conferma', cancelText = 'Annulla', danger = false, title = '' } = {}) {
   return new Promise((resolve) => {
+    let answer = false;
     openSheet(
-      `<p class="sheet-msg">${esc(message)}</p>
+      `${title ? `<h3 class="sheet-title">${esc(title)}</h3>` : ''}
+       <p class="sheet-msg">${esc(message)}</p>
        <div class="sheet-actions">
          <button class="btn ${danger ? 'danger' : 'primary'}" data-ok>${esc(okText)}</button>
-         <button class="btn ghost" data-cancel>Annulla</button>
+         <button class="btn ghost" data-cancel>${esc(cancelText)}</button>
        </div>`,
       (sheet, close) => {
-        sheet.querySelector('[data-ok]').onclick = () => { close(); resolve(true); };
-        sheet.querySelector('[data-cancel]').onclick = () => { close(); resolve(false); };
-        document.querySelector('#modal-root .backdrop').addEventListener('click', () => resolve(false));
-      }
+        sheet.querySelector('[data-ok]').onclick = () => { answer = true; close(); };
+        sheet.querySelector('[data-cancel]').onclick = () => close();
+      },
+      () => resolve(answer) // anche toccando fuori dal pop-up la risposta è "no"
     );
   });
 }
