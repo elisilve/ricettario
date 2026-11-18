@@ -511,7 +511,6 @@ body.no-tabbar .tabbar { display: none; }
 
 /* Dispensa */
 .food-row { width: 100%; text-align: left; }
-.food-initial { font-size: 22px !important; font-weight: 700; color: var(--accent); }
 .subtitle + .search { margin-top: 4px; }
 .macro-val { white-space: nowrap; }
 .pantry-list { margin-top: 14px; }
@@ -541,3 +540,20 @@ body.no-tabbar .tabbar { display: none; }
 /* Pop-up aperto: la pagina sotto non scorre */
 html.sheet-open, html.sheet-open body { overflow: hidden; }
 .sheet { overscroll-behavior: contain; }
+
+/* Icone degli alimenti */
+.food-letter { font-size: 22px; font-weight: 700; color: var(--accent); }
+.ing-avatar {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 26px; height: 26px; margin-right: 8px; vertical-align: middle;
+  border-radius: 8px; overflow: hidden; background: var(--accent-soft);
+  font-size: 16px; line-height: 1;
+}
+.ing-avatar .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.ing-avatar .food-letter { font-size: 13px; }
+.sg-name { display: inline-flex; align-items: center; min-width: 0; }
+.ip-emoji.is-placeholder { color: var(--accent); font-weight: 700; font-size: 34px; }
+
+.ing-avatar.empty { background: transparent; }
+/* i macro sotto l'ingrediente partono allineati al nome quando c'è l'icona */
+.ingredients li:has(.ing-avatar) .ing-macros { padding-left: 34px; }

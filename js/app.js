@@ -4,7 +4,7 @@
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
-import { recipeNutrition, foodKcal, isNegligible } from './nutrition.js';
+import { recipeNutrition, foodKcal, isNegligible, resolveFood } from './nutrition.js';
 
 const $view = document.getElementById('view');
 const $navbar = document.getElementById('navbar');
@@ -251,7 +251,9 @@ const EMOJI_PICKS = ['🥣', '🍝', '🍗', '🐟', '🥗', '🍲', '🍕', '�
  * Selettore dell'icona: emoji oppure foto dalla galleria.
  * Restituisce { commit() } che salva la foto (se serve) e dà { emoji, photo }.
  */
-function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
+function iconPicker(container, { emoji = '🍽️', photo = null, picks = EMOJI_PICKS, fallback = '🍽️', placeholder = '' } = {}) {
+  // fallback: emoji usata se il campo resta vuoto ('' = nessuna emoji, es. per gli alimenti)
+  // placeholder: cosa mostrare nell'anteprima quando non c'è emoji (es. l'iniziale del nome)
   const st = { mode: getImage(photo) ? 'photo' : 'emoji', emoji, newData: null };
 
   const draw = () => {
@@ -262,7 +264,7 @@ function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
         <label class="ip-preview ${isPhoto ? 'is-photo' : ''}">
           ${isPhoto
             ? (src ? `<img src="${esc(src)}" alt="">` : `<span class="ip-cam">${icon.camera}</span>`)
-            : `<span class="ip-emoji">${esc(st.emoji)}</span>`}
+            : `<span class="ip-emoji ${st.emoji ? '' : 'is-placeholder'}">${esc(st.emoji || placeholder)}</span>`}
           ${isPhoto ? '<input type="file" accept="image/*" hidden>' : ''}
         </label>
         <div class="ip-side">
@@ -273,12 +275,12 @@ function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
           ${isPhoto
             ? `<label class="btn ghost small ip-choose">${icon.camera} ${src ? 'Cambia foto' : 'Scegli dalla galleria'}
                  <input type="file" accept="image/*" hidden></label>`
-            : `<input class="input ip-field" maxlength="4" value="${esc(st.emoji)}" aria-label="Emoji">`}
+            : `<input class="input ip-field" maxlength="4" value="${esc(st.emoji)}" placeholder="${fallback ? '' : 'Emoji'}" aria-label="Emoji">`}
         </div>
       </div>
       ${isPhoto ? '' : `
         <div class="emoji-picks">
-          ${EMOJI_PICKS.map((e) => `<button type="button" class="emoji-pick" data-e="${e}">${e}</button>`).join('')}
+          ${picks.map((e) => `<button type="button" class="emoji-pick" data-e="${e}">${e}</button>`).join('')}
         </div>`}`;
 
     container.querySelectorAll('[data-mode]').forEach((b) =>
@@ -286,13 +288,18 @@ function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
     );
     const field = container.querySelector('.ip-field');
     const preview = container.querySelector('.ip-emoji');
+    const showEmoji = () => {
+      preview.textContent = st.emoji || placeholder;
+      preview.classList.toggle('is-placeholder', !st.emoji);
+    };
     field?.addEventListener('input', () => {
-      st.emoji = field.value.trim() || '🍽️';
-      preview.textContent = st.emoji;
+      st.emoji = field.value.trim() || fallback;
+      showEmoji();
     });
     container.querySelectorAll('.emoji-pick').forEach((b) =>
       b.addEventListener('click', () => {
-        st.emoji = field.value = preview.textContent = b.dataset.e;
+        st.emoji = field.value = b.dataset.e;
+        showEmoji();
       })
     );
     container.querySelectorAll('input[type=file]').forEach((input) =>
@@ -311,6 +318,12 @@ function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
   draw();
 
   return {
+    /** Aggiorna l'iniziale mostrata quando non c'è un'emoji (es. mentre scrivi il nome) */
+    setPlaceholder(text) {
+      placeholder = text;
+      const preview = container.querySelector('.ip-emoji.is-placeholder');
+      if (preview) preview.textContent = text;
+    },
     async commit() {
       if (st.mode === 'photo' && st.newData) {
         await deleteImage(photo);
@@ -447,14 +460,21 @@ function renderRecipe(id) {
   const drawIngredients = (nut) => {
     const factor = portions / (r.servings || 1);
     document.getElementById('portions').innerHTML = `${icon.people} ${portions}`;
+    const anyLinked = r.ingredients.some((i) => resolveFood(i));
     document.getElementById('ingredients').innerHTML = r.ingredients.length
       ? r.ingredients.map((i, idx) => {
           const q = i.qty ? fmt(i.qty * factor) : '';
           const m = nut.perIngredient[idx];
+          // Icona dell'alimento (o la sua iniziale); spazio vuoto per gli ingredienti non in dispensa,
+          // così i nomi restano allineati
+          const f = resolveFood(i);
+          const avatarHtml = !anyLinked ? '' : f
+            ? `<span class="ing-avatar">${foodAvatar(f)}</span>`
+            : '<span class="ing-avatar empty"></span>';
           return `
             <li>
               <div class="ing-main">
-                <span class="ing-name">${esc(i.name)}</span>
+                <span class="ing-name">${avatarHtml}${esc(i.name)}</span>
                 <span class="ing-qty">${q} ${esc(i.unit || '')}</span>
               </div>
               ${m ? `<div class="ing-macros">${macroLine(m)}</div>` : ''}
@@ -500,8 +520,20 @@ const basisLabel = (f) => (f.basis === 'pz' ? 'per 1 pezzo' : 'per 100 gr');
 
 // Copia dei valori dell'alimento, salvata nella ricetta (serve se l'alimento viene eliminato)
 const foodSnapshot = (f) => ({
-  name: f.name, basis: f.basis, protein: f.protein, carbs: f.carbs, fat: f.fat, kcal: f.kcal ?? null,
+  name: f.name, emoji: f.emoji || '', basis: f.basis, protein: f.protein, carbs: f.carbs, fat: f.fat, kcal: f.kcal ?? null,
 });
+
+// Emoji suggerite per gli alimenti
+const FOOD_PICKS = ['🥕', '🍅', '🥦', '🥬', '🧅', '🧄', '🥔', '🎃', '🍎', '🍌', '🍋', '🥑', '🫘', '🥜', '🫒', '🌰',
+  '🥚', '🧀', '🥛', '🧈', '🍗', '🥩', '🐟', '🍚'];
+
+/** Icona di un alimento: foto, emoji, oppure l'iniziale del nome */
+const foodAvatar = (f) => {
+  const src = getImage(f?.photo);
+  if (src) return `<img class="avatar-img" src="${esc(src)}" alt="">`;
+  if (f?.emoji) return esc(f.emoji);
+  return `<span class="food-letter">${esc((f?.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+};
 
 const ingredientRow = (i = {}) => `
   <div class="ing-row" data-food-id="${esc(i.foodId || '')}" data-food-snap="${i.food ? esc(JSON.stringify(i.food)) : ''}">
@@ -714,7 +746,7 @@ function renderEditor(id, presetCategory) {
     box.hidden = !items.length;
     box.innerHTML = items.map((f) => `
       <button type="button" data-food="${f.id}">
-        <span>${esc(f.name)}</span><small>${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</small>
+        <span class="sg-name"><span class="ing-avatar">${foodAvatar(f)}</span>${esc(f.name)}</span><small>${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</small>
       </button>`).join('');
   };
 
@@ -859,7 +891,7 @@ function renderPantry() {
     $list.innerHTML = foods.length
       ? `<div class="list">${foods.map((f) => `
           <button class="row glass food-row" data-id="${f.id}">
-            <span class="row-emoji food-initial">${esc(f.name.trim().charAt(0).toUpperCase())}</span>
+            <span class="row-emoji">${foodAvatar(f)}</span>
             <span class="row-body">
               <span class="row-title">${esc(f.name)}</span>
               <span class="row-meta">${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</span>
@@ -889,6 +921,7 @@ function foodSheet(food = null, opts = {}) {
   openSheet(
     `<h3 class="sheet-title">${food ? 'Modifica alimento' : 'Nuovo alimento'}</h3>
      <form id="food-form" class="form">
+       <div id="food-icon"></div>
        <input class="input" name="name" placeholder="Nome (es. Zucca)" value="${esc(food?.name || opts.name || '')}" required>
        <div class="field">
          <span>I valori si riferiscono a</span>
@@ -922,6 +955,12 @@ function foodSheet(food = null, opts = {}) {
           ? `Dai macro risultano circa <strong>${k} kcal</strong> ${per}.${form.kcal.value ? '' : ' Se lasci vuoto userò questo valore.'}`
           : `Per i liquidi conta 1 ml come 1 gr.`;
       };
+      const initial = () => (form.name.value.trim().charAt(0) || '?').toUpperCase();
+      const picker = iconPicker(sheet.querySelector('#food-icon'), {
+        emoji: food?.emoji || '', photo: food?.photo, picks: FOOD_PICKS, fallback: '', placeholder: initial(),
+      });
+      form.name.addEventListener('input', () => picker.setPlaceholder(initial()));
+
       sheet.querySelectorAll('[data-basis]').forEach((b) =>
         b.addEventListener('click', () => {
           basis = b.dataset.basis;
@@ -932,7 +971,7 @@ function foodSheet(food = null, opts = {}) {
       ['protein', 'carbs', 'fat', 'kcal'].forEach((f) => form[f].addEventListener('input', updateHint));
       updateHint();
 
-      form.onsubmit = (e) => {
+      form.onsubmit = async (e) => {
         e.preventDefault();
         const name = form.name.value.trim();
         if (!name) return form.name.focus();
@@ -946,8 +985,9 @@ function foodSheet(food = null, opts = {}) {
           }
           return toast('C’è già un alimento con questo nome');
         }
+        const { emoji, photo } = await picker.commit();
         const id = store.saveFood({
-          id: food?.id, name, basis, ...macros(),
+          id: food?.id, name, emoji, photo, basis, ...macros(),
           kcal: form.kcal.value.trim() ? num(form.kcal.value) : null,
         });
         saved = true;
@@ -963,6 +1003,7 @@ function foodSheet(food = null, opts = {}) {
           ? `“${food.name}” è usato in ${used === 1 ? '1 ricetta' : `${used} ricette`}: lì resteranno i valori di adesso. Eliminarlo dalla dispensa?`
           : `Eliminare “${food.name}” dalla dispensa?`;
         if (await confirmSheet(msg, { okText: 'Elimina', danger: true })) {
+          await deleteImage(food.photo);
           store.deleteFood(food.id);
           toast('Alimento eliminato');
           router();
