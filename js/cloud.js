@@ -85,6 +85,12 @@ export const resetPassword = async (email) =>
 
 export const updatePassword = async (password) => check(await sb.auth.updateUser({ password }));
 
+/** Cambio password dall'app: prima verifico quella attuale (rifacendo l'accesso), poi la aggiorno */
+export async function changePassword(current, next) {
+  check(await sb.auth.signInWithPassword({ email: user.email, password: current }));
+  check(await sb.auth.updateUser({ password: next }));
+}
+
 export async function signOut() {
   stopRealtime();
   // via le copie locali dei ricettari (restano sul server)

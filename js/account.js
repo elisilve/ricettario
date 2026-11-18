@@ -68,6 +68,8 @@ export function authScreen({ mode = 'login', message = '' } = {}) {
             ${mode !== 'reset' ? `
               <input class="input" type="password" name="password" placeholder="${mode === 'login' ? 'Password' : 'Password (almeno 6 caratteri)'}"
                      autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" required>` : ''}
+            ${mode === 'signup' || mode === 'newpass' ? `
+              <input class="input" type="password" name="confirm" placeholder="Ripeti la password" autocomplete="new-password" required>` : ''}
             <p class="auth-msg ${isError ? 'error' : ''}" ${msg ? '' : 'hidden'}>${esc(msg)}</p>
             <button class="btn primary full" type="submit">${t.btn}</button>
           </form>
@@ -91,6 +93,7 @@ export function authScreen({ mode = 'login', message = '' } = {}) {
         const password = form.password?.value || '';
         if (form.email && !email) return draw('Inserisci la tua email.', true);
         if (form.password && password.length < 6) return draw('La password deve avere almeno 6 caratteri.', true);
+        if (form.confirm && form.confirm.value !== password) return draw('Le due password non coincidono.', true);
         btn.disabled = true;
         btn.textContent = 'Un attimo…';
         try {
@@ -163,6 +166,7 @@ export function accountSheet({ onSwitched, onBackup }) {
       const $acct = sheet.querySelector('#acct');
       let people = { members: [], invites: [] };
       let inviteRole = 'viewer';
+      let tab = 'book'; // scheda del menu: 'book' (ricettario e persone) | 'password'
 
       const syncLine = () => {
         const n = cloud.pendingCount();
@@ -203,6 +207,12 @@ export function accountSheet({ onSwitched, onBackup }) {
             </div>
           </div>
 
+          <div class="segmented acct-tabs" role="tablist">
+            <button type="button" data-tab="book" class="${tab === 'book' ? 'on' : ''}">Invito</button>
+            <button type="button" data-tab="password" class="${tab === 'password' ? 'on' : ''}">Password</button>
+          </div>
+
+          ${tab === 'book' ? `
           <h4 class="acct-h">Ricettario</h4>
           <div class="action-list books">
             ${cloud.books.map((x) => `
@@ -232,11 +242,58 @@ export function accountSheet({ onSwitched, onBackup }) {
             </form>` : `
             <p class="hint">Sei in questo ricettario come: <strong>${ROLE_LABEL[b.role]}</strong>.</p>
             <button type="button" class="btn ghost full danger-text" id="leave">Esci da questo ricettario</button>`}
+          ` : `
+          <form class="pw-form" id="pw-form" novalidate>
+            <h4 class="acct-h">Cambia password</h4>
+            <input class="input" type="password" name="current" placeholder="Password attuale" autocomplete="current-password">
+            <input class="input" type="password" name="next" placeholder="Nuova password (almeno 6 caratteri)" autocomplete="new-password">
+            <input class="input" type="password" name="confirm" placeholder="Ripeti la nuova password" autocomplete="new-password">
+            <p class="auth-msg" id="pw-msg" hidden></p>
+            <button class="btn primary full" type="submit">Salva la nuova password</button>
+          </form>`}
 
           <div class="action-list acct-actions">
             <button type="button" class="action" id="backup">Backup</button>
             <button type="button" class="action danger" id="logout">Esci dall’account</button>
           </div>`;
+
+        // Menu: Ricettario / Password
+        $acct.querySelectorAll('[data-tab]').forEach((t) =>
+          t.addEventListener('click', () => { tab = t.dataset.tab; draw(); })
+        );
+
+        // Cambio password
+        const pw = $acct.querySelector('#pw-form');
+        if (pw) {
+          const msg = (text, isError = true) => {
+            const el = pw.querySelector('#pw-msg');
+            el.hidden = !text;
+            el.textContent = text;
+            el.classList.toggle('error', isError);
+          };
+          pw.onsubmit = async (e) => {
+            e.preventDefault();
+            const { current, next, confirm } = pw;
+            if (!current.value) return msg('Inserisci la password attuale.');
+            if (next.value.length < 6) return msg('La nuova password deve avere almeno 6 caratteri.');
+            if (next.value !== confirm.value) return msg('Le due nuove password non coincidono.');
+            if (next.value === current.value) return msg('La nuova password deve essere diversa da quella attuale.');
+            const btn = pw.querySelector('button[type=submit]');
+            btn.disabled = true;
+            btn.textContent = 'Un attimo…';
+            try {
+              await cloud.changePassword(current.value, next.value);
+              pw.reset();
+              msg('Password aggiornata ✓', false);
+              toast('Password aggiornata');
+            } catch (err) {
+              msg(/invalid login credentials/i.test(String(err?.message)) ? 'La password attuale non è corretta.' : errorText(err));
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Salva la nuova password';
+            }
+          };
+        }
 
         // Cambio ricettario
         $acct.querySelectorAll('[data-book]').forEach((btn) =>

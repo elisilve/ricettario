@@ -648,3 +648,8 @@ body.auth-open .navbar, body.auth-open .tabbar, body.auth-open .view { visibilit
 }
 .share-btn svg { width: 15px; height: 15px; }
 .share-btn:active { opacity: .6; }
+
+/* Menu del pannello Account */
+.acct-tabs { margin-top: 6px; }
+.pw-form { display: flex; flex-direction: column; gap: 10px; }
+.pw-form .acct-h { margin-bottom: 0; }
