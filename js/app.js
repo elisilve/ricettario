@@ -3,6 +3,8 @@
 // =============================================================
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
+import * as cloud from './cloud.js';
+import { authScreen, accountSheet, errorText } from './account.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
 import { recipeNutrition, foodKcal, isNegligible, resolveFood } from './nutrition.js';
 
@@ -23,22 +25,33 @@ const routes = [
   [/^#\/modifica\/([\w-]+)$/, (m) => renderEditor(m[1])],
 ];
 
-function router() {
+/** soft: ridisegna la schermata attuale senza animazione e senza tornare in cima
+ *  (usato quando arrivano modifiche da un altro dispositivo o da un'altra persona) */
+function router({ soft = false } = {}) {
   const hash = location.hash || '#/';
+  // Chi ha accesso in sola lettura non può aprire l'editor
+  if (!canEdit() && /^#\/(nuova|modifica)/.test(hash)) return location.replace('#/');
   for (const [re, view] of routes) {
     const m = hash.match(re);
     if (m) {
-      $view.classList.remove('enter');
-      void $view.offsetWidth; // riavvia l'animazione
-      $view.classList.add('enter');
-      window.scrollTo(0, 0);
+      const y = window.scrollY;
+      if (!soft) {
+        $view.classList.remove('enter');
+        void $view.offsetWidth; // riavvia l'animazione
+        $view.classList.add('enter');
+        window.scrollTo(0, 0);
+      }
       view(m);
+      if (soft) window.scrollTo(0, y);
       onScroll();
       return;
     }
   }
   location.replace('#/');
 }
+
+/** Si possono modificare i dati? (sempre senza account; con account dipende dal ruolo) */
+const canEdit = () => !cloud.enabled || cloud.canEdit();
 
 const go = (hash, replace = false) => (replace ? location.replace(hash) : (location.hash = hash));
 
@@ -154,7 +167,7 @@ function renderHome() {
       </label>
       <div id="home-content"></div>
     </section>
-    <a class="fab" href="#/nuova" aria-label="Nuova ricetta">${icon.plus}</a>`;
+    <a class="fab edit-only" href="#/nuova" aria-label="Nuova ricetta">${icon.plus}</a>`;
 
   const $content = document.getElementById('home-content');
   const $q = document.getElementById('q');
@@ -180,7 +193,7 @@ function renderHome() {
             <span class="cat-name">${esc(c.name)}</span>
             <span class="cat-count">${countLabel(store.recipesIn(c.id).length)}</span>
           </a>`).join('')}
-        <button class="cat add" id="add-cat">
+        <button class="cat add edit-only" id="add-cat">
           <span class="cat-emoji">${icon.plus}</span>
           <span class="cat-name">Nuova categoria</span>
         </button>
@@ -192,7 +205,10 @@ function renderHome() {
   };
 
   $q.addEventListener('input', draw);
-  document.getElementById('settings').onclick = settingsSheet;
+  document.getElementById('settings').onclick = () =>
+    cloud.enabled && cloud.user
+      ? accountSheet({ onSwitched: afterBookChange, onBackup: settingsSheet })
+      : settingsSheet();
   draw();
 }
 
@@ -208,7 +224,7 @@ function renderCategory(id) {
   setNav({
     title: cat.name,
     back: { href: '#/', label: 'Ricette' },
-    right: `<button class="nav-btn icon" id="cat-menu" aria-label="Opzioni categoria">${icon.more}</button>`,
+    right: canEdit() ? `<button class="nav-btn icon" id="cat-menu" aria-label="Opzioni categoria">${icon.more}</button>` : '',
   });
 
   $view.innerHTML = `
@@ -220,12 +236,13 @@ function renderCategory(id) {
         : `<div class="empty-state glass">
              <span class="big-emoji">${avatar(cat)}</span>
              <p>Ancora nessuna ricetta in questa categoria.</p>
-             <a class="btn primary" href="#/nuova/${id}">Aggiungi la prima ricetta</a>
+             <a class="btn primary edit-only" href="#/nuova/${id}">Aggiungi la prima ricetta</a>
            </div>`}
     </section>
-    <a class="fab" href="#/nuova/${id}" aria-label="Nuova ricetta">${icon.plus}</a>`;
+    <a class="fab edit-only" href="#/nuova/${id}" aria-label="Nuova ricetta">${icon.plus}</a>`;
 
-  document.getElementById('cat-menu').onclick = () =>
+  const $catMenu = document.getElementById('cat-menu');
+  if ($catMenu) $catMenu.onclick = () =>
     actionSheet([
       { label: 'Modifica categoria', run: () => categorySheet(cat) },
       {
@@ -377,7 +394,7 @@ function renderRecipe(id) {
   setNav({
     title: r.name,
     back: { href: cat ? `#/categoria/${cat.id}` : '#/', label: cat?.name || 'Ricette' },
-    right: `<a class="nav-btn text" href="#/modifica/${r.id}">Modifica</a>`,
+    right: canEdit() ? `<a class="nav-btn text" href="#/modifica/${r.id}">Modifica</a>` : '',
   });
 
   $view.innerHTML = `
@@ -419,7 +436,7 @@ function renderRecipe(id) {
           <p class="notes">${esc(r.notes)}</p>
         </div>` : ''}
 
-      <button class="btn danger-ghost full" id="delete">${icon.trash} Elimina ricetta</button>
+      <button class="btn danger-ghost full edit-only" id="delete">${icon.trash} Elimina ricetta</button>
     </section>`;
 
   // Valori totali (in grande) + per porzione (in piccolo, solo se le porzioni sono più di una)
@@ -869,7 +886,7 @@ function renderPantry() {
       </label>
       <div id="pantry-list" class="pantry-list"></div>
     </section>
-    <button class="fab" id="add-food" aria-label="Nuovo alimento">${icon.plus}</button>`;
+    <button class="fab edit-only" id="add-food" aria-label="Nuovo alimento">${icon.plus}</button>`;
 
   const $list = document.getElementById('pantry-list');
   const $q = document.getElementById('pq');
@@ -883,7 +900,7 @@ function renderPantry() {
         <div class="empty-state glass">
           <span class="big-emoji">🧺</span>
           <p>La dispensa è vuota. Aggiungi gli alimenti che usi spesso: nelle ricette i loro valori si calcoleranno da soli.</p>
-          <button class="btn primary" id="first-food">Aggiungi il primo alimento</button>
+          <button class="btn primary edit-only" id="first-food">Aggiungi il primo alimento</button>
         </div>`;
       document.getElementById('first-food').onclick = () => foodSheet();
       return;
@@ -904,7 +921,9 @@ function renderPantry() {
 
   $list.addEventListener('click', (e) => {
     const row = e.target.closest('.food-row');
-    if (row) foodSheet(store.getFood(row.dataset.id));
+    if (!row) return;
+    if (!canEdit()) return toast('Puoi solo consultare questo ricettario');
+    foodSheet(store.getFood(row.dataset.id));
   });
   $q.addEventListener('input', draw);
   document.getElementById('add-food').onclick = () => foodSheet();
@@ -1020,7 +1039,7 @@ function foodSheet(food = null, opts = {}) {
 // =============================================================
 function settingsSheet() {
   openSheet(
-    `<h3 class="sheet-title">Impostazioni</h3>
+    `<h3 class="sheet-title">${cloud.enabled ? 'Backup' : 'Impostazioni'}</h3>
      <p class="sheet-msg">Le ricette sono salvate su questo dispositivo. Fai ogni tanto un backup per non perderle.</p>
      <div class="action-list">
        <button class="action" id="export">Esporta backup (.json)</button>
@@ -1057,16 +1076,101 @@ function settingsSheet() {
   );
 }
 
-// ---------- Avvio ----------
-window.addEventListener('hashchange', router);
-await initImages(); // carica le foto prima di disegnare
-router();
+// ---------- Account e sincronizzazione ----------
+/** Dopo aver aperto/cambiato ricettario: permessi e schermata aggiornati */
+function afterBookChange() {
+  document.body.classList.toggle('read-only', !canEdit());
+  if (!canEdit() && /^#\/(nuova|modifica)/.test(location.hash)) location.replace('#/');
+  router();
+}
 
-// App pronta: via la schermata di caricamento
-document.body.classList.remove('loading');
-const $splash = document.getElementById('splash');
-$splash.classList.add('hide');
-setTimeout(() => $splash.remove(), 400);
+/** Modifiche arrivate da un altro dispositivo/persona: ridisegno, ma non mentre stai scrivendo */
+function onRemoteChange() {
+  const editing = /^#\/(nuova|modifica)/.test(location.hash) || document.querySelector('#modal-root .sheet');
+  if (!editing) router({ soft: true });
+}
+
+/** Primo accesso con ricettario vuoto: porto le ricette di questo dispositivo, oppure parto con le categorie base */
+async function setupEmptyBook() {
+  if (!cloud.isOwner() || !cloud.isEmpty() || localStorage.getItem(`ricettario:setup:${cloud.book.id}`)) return;
+  const local = store.readLocalData();
+  const hasLocal = local && (local.recipes.length || local.pantry.length);
+  let imported = false;
+  if (hasLocal) {
+    const yes = await confirmSheet(
+      `Su questo dispositivo ci sono ${local.recipes.length === 1 ? '1 ricetta' : `${local.recipes.length} ricette`} e ${local.pantry.length === 1 ? '1 alimento' : `${local.pantry.length} alimenti`} in dispensa. Vuoi salvarli nel tuo account?`,
+      { title: 'Le tue ricette', okText: 'Sì, salvali nell’account', cancelText: 'No, parto da zero' }
+    );
+    if (yes) {
+      store.replaceData(local);
+      await cloud.uploadAll();
+      imported = true;
+      toast('Ricette salvate nel tuo account');
+    }
+  }
+  if (!imported) {
+    store.replaceData({ categories: store.defaultCategories() });
+    await cloud.uploadAll();
+  }
+  localStorage.setItem(`ricettario:setup:${cloud.book.id}`, '1');
+  router();
+}
+
+/** Avvio con account: accesso (se serve), scelta del ricettario, download dei dati */
+async function startCloud() {
+  await cloud.init();
+  let recovering = false;
+  cloud.onAuthChange((event) => {
+    // aperto il link "password dimenticata": si sceglie la nuova password
+    if (event === 'PASSWORD_RECOVERY' && !recovering) {
+      recovering = true;
+      authScreen({ mode: 'newpass' }).then(() => { recovering = false; });
+    }
+  });
+  cloud.on('remote', onRemoteChange);
+  cloud.on('error', (e) => toast(errorText(e)));
+  if (!cloud.user) {
+    hideSplash();
+    await authScreen();
+  }
+  for (;;) {
+    try {
+      const { joined } = await cloud.loadBooks();
+      await cloud.openBook(cloud.pickBook(joined));
+      if (joined) toast(`Ti hanno condiviso il ricettario “${cloud.book.name}”`);
+      return;
+    } catch (e) {
+      hideSplash();
+      await confirmSheet(errorText(e), { title: 'Impossibile caricare le ricette', okText: 'Riprova', cancelText: 'Riprova' });
+    }
+  }
+}
+
+function hideSplash() {
+  document.body.classList.remove('loading');
+  const $splash = document.getElementById('splash');
+  if (!$splash) return;
+  $splash.classList.add('hide');
+  setTimeout(() => $splash.remove(), 400);
+}
+
+// ---------- Avvio ----------
+await initImages(); // carica le foto prima di disegnare
+if (cloud.enabled) {
+  try {
+    await startCloud();
+  } catch (e) {
+    console.error(e);
+    toast('Impossibile collegarsi al server: uso i dati di questo dispositivo');
+  }
+}
+document.body.classList.toggle('read-only', !canEdit());
+window.addEventListener('hashchange', router);
+if (/access_token|error_description|type=recovery/.test(location.hash)) location.replace(location.pathname + '#/');
+router();
+hideSplash();
+if (cloud.enabled && cloud.book) setupEmptyBook();
+
 
 // Service worker: rende l'app installabile e utilizzabile offline.
 // Non lo attiviamo in locale per non avere problemi di cache mentre sviluppi.

@@ -47,23 +47,31 @@ export async function initImages() {
 }
 
 export const getImage = (id) => (id ? cache.get(id) || null : null);
+export const hasImage = (id) => cache.has(id);
 export const allImages = () => Object.fromEntries(cache);
 
-export async function putImage(id, dataUrl) {
+// Avvisi quando si aggiunge o toglie una foto (servono per caricarla anche sul server)
+const listeners = new Set();
+export const onImageChange = (fn) => listeners.add(fn);
+
+/** silent: true quando la foto arriva dal server (non va ricaricata) */
+export async function putImage(id, dataUrl, { silent = false } = {}) {
   cache.set(id, dataUrl);
   if (db) await run('readwrite', (s) => s.put(dataUrl, id));
+  if (!silent) listeners.forEach((fn) => fn({ id, op: 'put' }));
 }
 
-export async function deleteImage(id) {
+export async function deleteImage(id, { silent = false } = {}) {
   if (!id) return;
   cache.delete(id);
   if (db) await run('readwrite', (s) => s.delete(id));
+  if (!silent) listeners.forEach((fn) => fn({ id, op: 'delete' }));
 }
 
 export async function replaceAll(images = {}) {
   cache.clear();
   if (db) await run('readwrite', (s) => s.clear());
-  for (const [id, url] of Object.entries(images)) await putImage(id, url);
+  for (const [id, url] of Object.entries(images)) await putImage(id, url, { silent: true });
 }
 
 /** Legge una foto scelta dalla galleria e la restituisce ridimensionata (dataURL JPEG) */

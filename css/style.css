@@ -560,3 +560,83 @@ html.sheet-open, html.sheet-open body { overflow: hidden; }
 .ing-avatar.empty { background: transparent; }
 /* i macro sotto l'ingrediente partono allineati al nome quando c'è l'icona */
 .ingredients li:has(.ing-avatar) .ing-macros { padding-left: 34px; }
+
+/* =============================================================
+   Account: accesso, pannello, sola lettura
+   ============================================================= */
+/* Chi ha accesso in sola lettura non vede i pulsanti per modificare */
+body.read-only .edit-only { display: none !important; }
+
+/* Schermata di accesso */
+.auth {
+  position: fixed; inset: 0; z-index: 90; overflow-y: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom));
+  background: var(--bg);
+  transition: opacity .3s;
+}
+.auth.hide { opacity: 0; pointer-events: none; }
+body.auth-open .navbar, body.auth-open .tabbar, body.auth-open .view { visibility: hidden; }
+.auth-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.auth-logo { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 12px 30px rgba(15, 157, 138, .28); }
+.auth-title { font-size: 30px; font-weight: 700; letter-spacing: -.02em; margin: 18px 0 6px; }
+.auth-sub { color: var(--text-2); margin: 0 0 22px; font-size: 16px; }
+.auth-tabs { width: 100%; margin-bottom: 14px; }
+.auth .form { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.auth-msg { margin: 2px 4px; font-size: 14px; color: var(--accent); text-align: left; }
+.auth-msg.error { color: var(--danger); }
+.link-btn { margin-top: 16px; color: var(--accent); font-size: 15px; font-weight: 500; }
+.link-btn.small { margin: 8px 4px 0; font-size: 14px; }
+
+/* Pannello Account */
+.acct { display: flex; flex-direction: column; }
+.center { text-align: center; }
+.acct-me { display: flex; align-items: center; gap: 12px; padding: 4px 2px 10px; }
+.acct-email { font-weight: 600; word-break: break-all; }
+.sync { font-size: 13px; }
+.sync.ok { color: var(--accent); }
+.sync.wait { color: #d48a00; }
+.sync.off { color: var(--text-2); }
+.acct-h {
+  margin: 18px 4px 8px; font-size: 13px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--text-2);
+}
+.books { margin-bottom: 0; }
+.book-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px;
+  width: 100%; padding: 12px 14px; text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.book-row:last-child { border-bottom: 0; }
+.book-name { font-weight: 600; }
+.book-role { grid-column: 1; font-size: 13px; color: var(--text-2); }
+.book-check { grid-column: 2; grid-row: 1 / span 2; color: var(--accent); }
+.book-check svg { width: 18px; height: 18px; }
+.book-row.on { background: var(--accent-soft); }
+.rename-input { margin: 6px; width: calc(100% - 12px); }
+
+.people { display: flex; flex-direction: column; gap: 6px; }
+.person { display: flex; align-items: center; gap: 10px; padding: 6px 2px; }
+.person-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700;
+}
+.person-avatar.big { width: 46px; height: 46px; font-size: 20px; }
+.person-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.person-email { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-email small { color: var(--text-2); }
+.person-role { font-size: 13px; color: var(--text-2); }
+.person-role:empty { display: none; }
+.role-select { width: auto; min-height: 36px; padding: 6px 30px 6px 10px; font-size: 14px; background-position: right 8px center; background-size: 14px; }
+.icon-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--text-3); }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn.danger:active { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.invite { display: flex; flex-direction: column; gap: 10px; }
+.invite .acct-h { margin-bottom: 0; }
+.invite .hint, .acct > .hint { margin: 0 4px; }
+.acct > .hint { margin-top: 12px; }
+.danger-text { color: var(--danger) !important; margin-top: 10px; }
+.acct-actions { margin-top: 22px; }
+/* I messaggi temporanei in alto non bloccano i tocchi */
+.toast { pointer-events: none; }

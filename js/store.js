@@ -1,5 +1,5 @@
 // =============================================================
-//  store.js — dati dell'app salvati nel dispositivo (localStorage)
+//  store.js — dati dell'app (copia sul dispositivo + avvisi per la sincronizzazione)
 // =============================================================
 //
 //  Struttura dei dati (pensata già per le versioni future:
@@ -30,22 +30,28 @@
 
 import { allImages, replaceAll as replaceImages } from './images.js';
 
-const STORAGE_KEY = 'ricettario:v1';
+// Dove sono salvati i dati sul dispositivo:
+//  - senza account: "ricettario:v1"
+//  - con account: una copia locale per ogni ricettario ("ricettario:book:<id>"),
+//    così l'app si apre subito e funziona anche senza connessione
+export const LOCAL_KEY = 'ricettario:v1';
+let storageKey = LOCAL_KEY;
 
 export const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2))
     .replace(/-/g, '')
     .slice(0, 12);
 
+export const defaultCategories = () => [
+  { id: 'colazione', name: 'Colazione', emoji: '🥣', order: 0 },
+  { id: 'primi', name: 'Primi', emoji: '🍝', order: 1 },
+  { id: 'secondi', name: 'Secondi', emoji: '🍗', order: 2 },
+  { id: 'contorni', name: 'Contorni', emoji: '🥗', order: 3 },
+  { id: 'dolci', name: 'Dolci', emoji: '🍰', order: 4 },
+  { id: 'snack', name: 'Snack', emoji: '🥜', order: 5 },
+];
+
 function seed() {
-  const cats = [
-    { id: 'colazione', name: 'Colazione', emoji: '🥣' },
-    { id: 'primi', name: 'Primi', emoji: '🍝' },
-    { id: 'secondi', name: 'Secondi', emoji: '🍗' },
-    { id: 'contorni', name: 'Contorni', emoji: '🥗' },
-    { id: 'dolci', name: 'Dolci', emoji: '🍰' },
-    { id: 'snack', name: 'Snack', emoji: '🥜' },
-  ];
   const now = Date.now();
   const recipes = [
     {
@@ -74,14 +80,17 @@ function seed() {
       updatedAt: now,
     },
   ];
-  return { version: 1, categories: cats, recipes, pantry: [] };
+  // seeded: dati di esempio mai toccati (non vale la pena portarli nell'account)
+  return { version: 1, seeded: true, categories: defaultCategories(), recipes, pantry: [] };
 }
 
-let data = load();
+const empty = () => ({ version: 1, categories: [], recipes: [], pantry: [] });
 
-function load() {
+let data = load(LOCAL_KEY, true);
+
+function read(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.categories) && Array.isArray(parsed.recipes)) return normalize(parsed);
@@ -89,8 +98,14 @@ function load() {
   } catch (e) {
     console.warn('Impossibile leggere i dati salvati', e);
   }
-  const fresh = seed();
-  persist(fresh);
+  return null;
+}
+
+function load(key, withSeed) {
+  const found = read(key);
+  if (found) return found;
+  const fresh = withSeed ? seed() : empty();
+  persist(fresh, key);
   return fresh;
 }
 
@@ -98,18 +113,64 @@ function load() {
 function normalize(d) {
   if (!Array.isArray(d.pantry)) d.pantry = [];
   // L'unità dei grammi si scrive "gr"
-  d.recipes.forEach((r) => r.ingredients.forEach((i) => { if (i.unit === 'g') i.unit = 'gr'; }));
+  d.recipes.forEach((r) => (r.ingredients || []).forEach((i) => { if (i.unit === 'g') i.unit = 'gr'; }));
+  // Ordine delle categorie
+  d.categories.forEach((c, i) => { if (c.order == null) c.order = i; });
+  d.categories.sort((a, b) => a.order - b.order);
   return d;
 }
 
-function persist(d = data) {
+function persist(d = data, key = storageKey) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+    localStorage.setItem(key, JSON.stringify(d));
     return true;
   } catch (e) {
     console.error('Salvataggio non riuscito', e);
     return false;
   }
+}
+
+/** Passa a un altro archivio (es. la copia locale di un ricettario dell'account) */
+export function useStorage(key, { withSeed = false } = {}) {
+  storageKey = key;
+  data = load(key, withSeed);
+}
+
+/** I dati salvati sul dispositivo senza account (per portarli nell'account) */
+export const readLocalData = () => {
+  const d = read(LOCAL_KEY);
+  return d && !d.seeded ? d : null;
+};
+export const removeStorage = (key) => localStorage.removeItem(key);
+export const snapshot = () => data;
+
+// ---------- Avvisi di modifica (usati per sincronizzare con il server) ----------
+// change = { kind: 'category' | 'recipe' | 'food', id, item }  (item null = eliminato)
+//        | { kind: 'all' }  (es. dopo l'importazione di un backup)
+const listeners = new Set();
+export const onChange = (fn) => listeners.add(fn);
+const emit = (change) => {
+  if (data.seeded) { data.seeded = false; persist(); } // da qui in poi sono dati tuoi
+  listeners.forEach((fn) => fn(change));
+};
+
+const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry' };
+
+/** Sostituisce tutti i dati con quelli arrivati dal server (senza rimandarli indietro) */
+export function replaceData({ categories = [], recipes = [], pantry = [] }) {
+  data = normalize({ version: 1, categories, recipes, pantry });
+  persist();
+}
+
+/** Applica una singola modifica arrivata dal server (senza rimandarla indietro) */
+export function applyRemote(kind, id, item) {
+  const key = COLLECTION[kind];
+  if (!key) return;
+  const list = data[key].filter((x) => x.id !== id);
+  if (item) list.push({ ...item, id });
+  data[key] = list;
+  normalize(data);
+  persist();
 }
 
 // ---------- Categorie ----------
@@ -122,15 +183,18 @@ export function saveCategory({ id, name, emoji, photo = null }) {
     Object.assign(c, { name, emoji, photo });
   } else {
     id = uid();
-    data.categories.push({ id, name, emoji, photo });
+    const order = Math.max(-1, ...data.categories.map((c) => c.order ?? 0)) + 1;
+    data.categories.push({ id, name, emoji, photo, order });
   }
   persist();
+  emit({ kind: 'category', id, item: getCategory(id) });
   return id;
 }
 
 export function deleteCategory(id) {
   data.categories = data.categories.filter((c) => c.id !== id);
   persist();
+  emit({ kind: 'category', id, item: null });
 }
 
 // ---------- Ricette ----------
@@ -151,12 +215,14 @@ export function saveRecipe(recipe) {
     data.recipes.push(recipe);
   }
   persist();
+  emit({ kind: 'recipe', id: recipe.id, item: getRecipe(recipe.id) });
   return recipe.id;
 }
 
 export function deleteRecipe(id) {
   data.recipes = data.recipes.filter((r) => r.id !== id);
   persist();
+  emit({ kind: 'recipe', id, item: null });
 }
 
 // ---------- Dispensa ----------
@@ -175,12 +241,14 @@ export function saveFood(food) {
     data.pantry.push(food);
   }
   persist();
+  emit({ kind: 'food', id: food.id, item: getFood(food.id) });
   return food.id;
 }
 
 export function deleteFood(id) {
   data.pantry = data.pantry.filter((f) => f.id !== id);
   persist();
+  emit({ kind: 'food', id, item: null });
 }
 
 export const recipesUsingFood = (id) => data.recipes.filter((r) => r.ingredients.some((i) => i.foodId === id));
@@ -198,4 +266,5 @@ export async function importJSON(text) {
   data = normalize(rest);
   persist();
   await replaceImages(images);
+  emit({ kind: 'all' });
 }

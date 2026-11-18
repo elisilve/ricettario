@@ -35,6 +35,7 @@ export const icon = {
   book: svg('<path d="M5 4.5h10.5A2.5 2.5 0 0118 7v13H7.5A2.5 2.5 0 015 17.5z"/><path d="M5 17.5A2.5 2.5 0 017.5 15H18M9 8.5h5"/>'),
   basket: svg('<path d="M3.5 9.5h17l-1.6 9a2 2 0 01-2 1.6H7.1a2 2 0 01-2-1.6z"/><path d="M8.5 9.5L11 4M15.5 9.5L13 4M9.5 13.5v3M14.5 13.5v3"/>'),
   alert: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>', 'width="13" height="13" stroke-width="2.4"'),
+  check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 'width="18" height="18" stroke-width="2.6"'),
   sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'),
   moon: svg('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
