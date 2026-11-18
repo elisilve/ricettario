@@ -12,6 +12,10 @@ Si installa sulla schermata Home come un'app vera e funziona anche offline.
 - Valori nutrizionali per porzione, con calorie calcolate automaticamente dai macro
 - Grafico ad anello con la ripartizione delle calorie fra i macronutrienti
 - Ricalcolo delle quantità degli ingredienti in base alle porzioni
+- **Dispensa**: alimenti con i valori per 100 g (o per pezzo); negli ingredienti delle ricette
+  i macronutrienti si calcolano da soli in base alla quantità, con totale ricetta e per porzione
+- Foto o emoji per ricette e categorie
+- Modalità chiara / scura
 - Ricerca per nome o ingrediente
 - Tema chiaro/scuro automatico, stile "glass" ispirato a iOS
 - Installabile come PWA, funziona offline
@@ -21,7 +25,7 @@ Si installa sulla schermata Home come un'app vera e funziona anche offline.
 
 - **HTML, CSS, JavaScript** (moduli ES, nessun framework e nessuna build)
 - **PWA**: Web App Manifest + Service Worker
-- **localStorage** per salvare i dati sul dispositivo
+- **localStorage** per i dati e **IndexedDB** per le foto
 - Router basato sull'hash (`#/ricetta/...`), compatibile con GitHub Pages
 
 ## Struttura
@@ -32,6 +36,8 @@ css/style.css          stile (variabili, glass, tema scuro)
 js/app.js              router e schermate
 js/store.js            dati e salvataggio
 js/ui.js               icone, modali, utility
+js/nutrition.js        calcolo dei valori nutrizionali dalla dispensa
+js/images.js           foto (ridimensionamento + IndexedDB)
 sw.js                  service worker (offline)
 manifest.webmanifest   info per l'installazione
 icons/                 icone dell'app

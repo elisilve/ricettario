@@ -124,6 +124,7 @@ svg { flex-shrink: 0; }
 .theme-toggle {
   width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 50%;
   color: var(--text-2);
+  margin-right: 10px; /* un po' di spazio dalle impostazioni / dai pulsanti a destra */
 }
 .theme-toggle svg { width: 21px; height: 21px; animation: spin-in .4s cubic-bezier(.3, 1.4, .5, 1); }
 @keyframes spin-in { from { transform: rotate(-90deg) scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -301,10 +302,9 @@ svg { flex-shrink: 0; }
 #portions svg { width: 18px; height: 18px; color: var(--text-2); }
 
 .ingredients { list-style: none; margin: 0; padding: 0; }
-.ingredients li {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 11px 0; border-bottom: 1px solid var(--hairline);
-}
+.ingredients li { padding: 11px 0; border-bottom: 1px solid var(--hairline); }
+.ing-main { display: flex; justify-content: space-between; gap: 12px; }
+.ing-macros { margin-top: 3px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ingredients li:last-child { border-bottom: 0; padding-bottom: 0; }
 .ing-qty { color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-2); }
@@ -349,7 +349,9 @@ select.input {
 .hint { margin: -2px 4px 0; font-size: 14px; color: var(--text-2); }
 .hint strong { color: var(--text); }
 
-.ing-row, .step-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px; }
+.step-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px; }
+.ing-row { margin-bottom: 10px; }
+.ing-fields { display: flex; gap: 6px; align-items: flex-start; }
 .ing-row .qty { width: 72px; flex-shrink: 0; }
 .ing-row .unit { width: 74px; flex-shrink: 0; }
 .step-row .step-n { margin-top: 9px; }
@@ -436,3 +438,75 @@ select.input {
 .ip-field { text-align: center; font-size: 22px; min-height: 42px; padding: 6px; }
 .ip-choose { margin: 0 !important; width: 100%; height: 42px; cursor: pointer; }
 .ip-choose svg { width: 18px; height: 18px; }
+
+
+/* =============================================================
+   Menu in basso (Ricette / Dispensa)
+   ============================================================= */
+.tabbar {
+  position: fixed; z-index: 15; left: 50%; transform: translateX(-50%);
+  bottom: calc(24px + var(--safe-bottom));
+  display: flex; gap: 4px; height: 60px; padding: 5px; border-radius: 30px;
+}
+.tabbar a {
+  width: 86px; border-radius: 25px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 11px; font-weight: 600; color: var(--text-2);
+  transition: background .2s, color .2s;
+}
+.tabbar a svg { width: 22px; height: 22px; }
+.tabbar a.active { color: var(--accent); background: var(--accent-soft); }
+body.no-tabbar .tabbar { display: none; }
+
+/* =============================================================
+   Valori nutrizionali: per ingrediente, totale, per porzione
+   ============================================================= */
+.ml.p { color: var(--prot); }
+.ml.c { color: #d48a00; }
+.ml.f { color: var(--fat); }
+[data-theme="dark"] .ml.c { color: var(--carb); }
+
+.per-serving {
+  display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hairline);
+  font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums;
+}
+.ps-label { font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 11.5px; }
+.ps-values strong { color: var(--text); font-weight: 600; }
+
+.nut-note, #nut-auto .hint {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 12px 0 0; font-size: 12.5px; color: var(--text-2);
+}
+.nut-note svg, #nut-auto .hint svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+
+.auto-total { display: flex; flex-direction: column; gap: 2px; }
+.at-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); }
+.at-kcal { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.at-kcal small { font-size: 15px; font-weight: 500; color: var(--text-2); }
+.at-macros { font-size: 15px; font-weight: 500; }
+.form-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* Editor: riga ingrediente con calcolo e suggerimenti */
+.ing-calc { margin: 4px 4px 0; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ing-calc:empty { display: none; }
+.ing-calc .warn { color: var(--danger); }
+.suggest {
+  margin-top: 6px; border-radius: 14px; overflow: hidden;
+  background: var(--glass-strong); border: 1px solid var(--hairline); box-shadow: var(--glass-shadow);
+}
+.suggest button {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  width: 100%; padding: 12px 14px; text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.suggest button:last-child { border-bottom: 0; }
+.suggest button:active { background: var(--accent-soft); }
+.suggest small { color: var(--text-2); font-size: 12.5px; white-space: nowrap; }
+
+/* Dispensa */
+.food-row { width: 100%; text-align: left; }
+.food-initial { font-size: 22px !important; font-weight: 700; color: var(--accent); }
+.subtitle + .search { margin-top: 4px; }
+.macro-val { white-space: nowrap; }
+.pantry-list { margin-top: 14px; }

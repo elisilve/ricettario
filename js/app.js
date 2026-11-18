@@ -4,16 +4,19 @@
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
+import { recipeNutrition, foodKcal } from './nutrition.js';
 
 const $view = document.getElementById('view');
 const $navbar = document.getElementById('navbar');
 const $navLeft = document.getElementById('nav-left');
 const $navTitle = document.getElementById('nav-title');
 const $navRight = document.getElementById('nav-right');
+const $tabbar = document.getElementById('tabbar');
 
 // ---------- Router (basato sull'hash: funziona su GitHub Pages) ----------
 const routes = [
   [/^#?\/?$/, () => renderHome()],
+  [/^#\/dispensa$/, () => renderPantry()],
   [/^#\/categoria\/([\w-]+)$/, (m) => renderCategory(m[1])],
   [/^#\/ricetta\/([\w-]+)$/, (m) => renderRecipe(m[1])],
   [/^#\/nuova(?:\/([\w-]+))?$/, (m) => renderEditor(null, m[1])],
@@ -78,6 +81,17 @@ function onScroll() {
 }
 window.addEventListener('scroll', onScroll, { passive: true });
 
+// ---------- Menu in basso ----------
+$tabbar.innerHTML = `
+  <a href="#/" data-tab="ricette">${icon.book}<span>Ricette</span></a>
+  <a href="#/dispensa" data-tab="dispensa">${icon.basket}<span>Dispensa</span></a>`;
+
+/** Evidenzia la sezione attiva; null nasconde il menu (dettaglio ricetta, editor) */
+function setTab(active) {
+  document.body.classList.toggle('no-tabbar', active === null);
+  $tabbar.querySelectorAll('[data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === active));
+}
+
 // ---------- Componenti ----------
 /** Icona di ricetta o categoria: la foto se c'è, altrimenti l'emoji */
 const avatar = (item, fallback = '🍽️') => {
@@ -92,16 +106,26 @@ const macroChips = (n) => `
     <i class="chip f">G ${fmt(n.fat)}g</i>
   </span>`;
 
-const recipeRow = (r) => `
+/** Riga piccola con i macro: "P 0,5 g · C 2,5 g · G 2,5 g · 31 kcal" */
+const macroLine = (m) =>
+  `<span class="ml p">P ${fmt(m.protein)} g</span> · <span class="ml c">C ${fmt(m.carbs)} g</span> · <span class="ml f">G ${fmt(m.fat)} g</span> · ${Math.round(m.kcal)} kcal`;
+
+// Nelle liste: valori totali della ricetta
+const recipeRow = (r) => {
+  const t = recipeNutrition(r).total;
+  const meta = [r.time && `${r.time} min`, r.servings > 1 && `${r.servings} porzioni`, `${Math.round(t.kcal)} kcal`]
+    .filter(Boolean).join(' · ');
+  return `
   <a class="row glass" href="#/ricetta/${r.id}">
     <span class="row-emoji">${avatar(r)}</span>
     <span class="row-body">
       <span class="row-title">${esc(r.name)}</span>
-      <span class="row-meta">${r.time ? `${r.time} min · ` : ''}${fmt(r.nutrition.kcal)} kcal</span>
-      ${macroChips(r.nutrition)}
+      <span class="row-meta">${meta}</span>
+      ${macroChips(t)}
     </span>
     <span class="row-chev">${icon.chevron}</span>
   </a>`;
+};
 
 const countLabel = (n) => (n === 1 ? '1 ricetta' : `${n} ricette`);
 
@@ -109,6 +133,7 @@ const countLabel = (n) => (n === 1 ? '1 ricetta' : `${n} ricette`);
 //  HOME — categorie + ricerca
 // =============================================================
 function renderHome() {
+  setTab('ricette');
   setNav({
     title: 'Ricette',
     right: `<button class="nav-btn icon" id="settings" aria-label="Impostazioni">${icon.gear}</button>`,
@@ -172,6 +197,7 @@ function renderCategory(id) {
   const cat = store.getCategory(id);
   if (!cat) return go('#/', true);
   const recipes = store.recipesIn(id);
+  setTab('ricette');
 
   setNav({
     title: cat.name,
@@ -326,20 +352,14 @@ function renderRecipe(id) {
   const r = store.getRecipe(id);
   if (!r) return go('#/', true);
   const cat = store.getCategory(r.categoryId);
-  const n = r.nutrition;
   let portions = r.servings || 1;
 
+  setTab(null);
   setNav({
     title: r.name,
     back: { href: cat ? `#/categoria/${cat.id}` : '#/', label: cat?.name || 'Ricette' },
     right: `<a class="nav-btn text" href="#/modifica/${r.id}">Modifica</a>`,
   });
-
-  // Ripartizione delle calorie fra i macro (per il grafico ad anello)
-  const kP = n.protein * 4, kC = n.carbs * 4, kF = n.fat * 9;
-  const kTot = kP + kC + kF || 1;
-  const pctP = (kP / kTot) * 100, pctC = (kC / kTot) * 100;
-  const pct = (k) => Math.round((k / kTot) * 100);
 
   $view.innerHTML = `
     <section class="page recipe">
@@ -352,27 +372,7 @@ function renderRecipe(id) {
         </div>
       </div>
 
-      <div class="card glass nutrition">
-        <div class="ring" style="--p:${pctP}%; --c:${pctP + pctC}%">
-          <div class="ring-inner">
-            <strong>${fmt(n.kcal)}</strong><span>kcal</span>
-          </div>
-        </div>
-        <div class="macros">
-          <p class="card-label">Valori per porzione</p>
-          ${[
-            ['p', 'Proteine', n.protein, kP],
-            ['c', 'Carboidrati', n.carbs, kC],
-            ['f', 'Grassi', n.fat, kF],
-          ].map(([k, label, g, kc]) => `
-            <div class="macro ${k}">
-              <span class="dot"></span>
-              <span class="macro-name">${label}</span>
-              <span class="macro-val">${fmt(g)} g</span>
-              <span class="macro-pct">${pct(kc)}%</span>
-            </div>`).join('')}
-        </div>
-      </div>
+      <div class="card glass" id="nutrition-card"></div>
 
       <div class="card glass">
         <div class="card-head">
@@ -403,20 +403,68 @@ function renderRecipe(id) {
       <button class="btn danger-ghost full" id="delete">${icon.trash} Elimina ricetta</button>
     </section>`;
 
-  // Porzioni: le quantità degli ingredienti si ricalcolano
-  const drawIngredients = () => {
+  // Valori totali (in grande) + per porzione (in piccolo, solo se le porzioni sono più di una)
+  const drawNutrition = (nut) => {
+    const t = nut.total;
+    const ps = nut.perServing;
+    const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9;
+    const kTot = kP + kC + kF || 1;
+    const pct = (k) => Math.round((k / kTot) * 100);
+    document.getElementById('nutrition-card').innerHTML = `
+      <div class="nutrition">
+        <div class="ring" style="--p:${(kP / kTot) * 100}%; --c:${((kP + kC) / kTot) * 100}%">
+          <div class="ring-inner"><strong>${Math.round(t.kcal)}</strong><span>kcal</span></div>
+        </div>
+        <div class="macros">
+          <p class="card-label">${portions > 1 ? `Totale · ${portions} porzioni` : 'Totale ricetta'}</p>
+          ${[['p', 'Proteine', t.protein, kP], ['c', 'Carboidrati', t.carbs, kC], ['f', 'Grassi', t.fat, kF]]
+            .map(([k, label, g, kc]) => `
+            <div class="macro ${k}">
+              <span class="dot"></span>
+              <span class="macro-name">${label}</span>
+              <span class="macro-val">${fmt(g)} g</span>
+              <span class="macro-pct">${pct(kc)}%</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      ${portions > 1 ? `
+        <div class="per-serving">
+          <span class="ps-label">Per porzione</span>
+          <span class="ps-values"><strong>${Math.round(ps.kcal)} kcal</strong> · ${macroLine({ ...ps, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+        </div>` : ''}
+      ${nut.auto ? `
+        <p class="nut-note">${icon.basket} Calcolati dagli alimenti della dispensa${
+          nut.missing.length ? `<br>Non conteggiati: ${esc(nut.missing.join(', '))}` : ''}</p>` : ''}`;
+  };
+
+  // Ingredienti: quantità e macro si ricalcolano con le porzioni
+  const drawIngredients = (nut) => {
     const factor = portions / (r.servings || 1);
     document.getElementById('portions').innerHTML = `${icon.people} ${portions}`;
     document.getElementById('ingredients').innerHTML = r.ingredients.length
-      ? r.ingredients.map((i) => {
+      ? r.ingredients.map((i, idx) => {
           const q = i.qty ? fmt(i.qty * factor) : '';
-          return `<li><span class="ing-name">${esc(i.name)}</span><span class="ing-qty">${q} ${esc(i.unit || '')}</span></li>`;
+          const m = nut.perIngredient[idx];
+          return `
+            <li>
+              <div class="ing-main">
+                <span class="ing-name">${esc(i.name)}</span>
+                <span class="ing-qty">${q} ${esc(i.unit || '')}</span>
+              </div>
+              ${m ? `<div class="ing-macros">${macroLine(m)}</div>` : ''}
+            </li>`;
         }).join('')
       : '<li class="muted">Nessun ingrediente inserito</li>';
   };
-  document.getElementById('minus').onclick = () => { if (portions > 1) { portions--; drawIngredients(); } };
-  document.getElementById('plus').onclick = () => { portions++; drawIngredients(); };
-  drawIngredients();
+
+  const draw = () => {
+    const nut = recipeNutrition(r, portions);
+    drawNutrition(nut);
+    drawIngredients(nut);
+  };
+  document.getElementById('minus').onclick = () => { if (portions > 1) { portions--; draw(); } };
+  document.getElementById('plus').onclick = () => { portions++; draw(); };
+  draw();
 
   document.getElementById('delete').onclick = async () => {
     if (await confirmSheet(`Eliminare “${r.name}”? L’operazione non si può annullare.`, { okText: 'Elimina', danger: true })) {
@@ -433,12 +481,23 @@ function renderRecipe(id) {
 // =============================================================
 const UNITS = ['g', 'kg', 'ml', 'l', 'pz', 'cucchiaio', 'cucchiaino', 'tazza', 'pizzico', 'q.b.'];
 
+const basisLabel = (f) => (f.basis === 'pz' ? 'per 1 pezzo' : 'per 100 g');
+
+// Copia dei valori dell'alimento, salvata nella ricetta (serve se l'alimento viene eliminato)
+const foodSnapshot = (f) => ({
+  name: f.name, basis: f.basis, protein: f.protein, carbs: f.carbs, fat: f.fat, kcal: f.kcal ?? null,
+});
+
 const ingredientRow = (i = {}) => `
-  <div class="ing-row">
-    <input class="input qty" name="qty" inputmode="decimal" placeholder="100" value="${i.qty ?? ''}">
-    <input class="input unit" name="unit" list="units" placeholder="g" value="${esc(i.unit || '')}">
-    <input class="input" name="ing" placeholder="Ingrediente" value="${esc(i.name || '')}">
-    <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
+  <div class="ing-row" data-food-id="${esc(i.foodId || '')}" data-food-snap="${i.food ? esc(JSON.stringify(i.food)) : ''}">
+    <div class="ing-fields">
+      <input class="input qty" name="qty" inputmode="decimal" placeholder="100" value="${i.qty ?? ''}">
+      <input class="input unit" name="unit" list="units" placeholder="g" value="${esc(i.unit || '')}">
+      <input class="input" name="ing" placeholder="Ingrediente" value="${esc(i.name || '')}" autocomplete="off">
+      <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
+    </div>
+    <div class="suggest" hidden></div>
+    <div class="ing-calc"></div>
   </div>`;
 
 const stepRow = (s = '') => `
@@ -459,6 +518,7 @@ function renderEditor(id, presetCategory) {
   };
   const backHref = editing ? `#/ricetta/${editing.id}` : presetCategory ? `#/categoria/${presetCategory}` : '#/';
 
+  setTab(null);
   setNav({
     title: editing ? 'Modifica' : 'Nuova ricetta',
     back: { href: backHref, label: 'Annulla' },
@@ -487,25 +547,30 @@ function renderEditor(id, presetCategory) {
         </div>
 
         <div class="card glass">
-          <h2 class="card-title">Valori nutrizionali <small>per porzione</small></h2>
-          <div class="field-grid three">
-            <label class="field macro-field p"><span>Proteine (g)</span>
-              <input class="input" name="protein" inputmode="decimal" placeholder="0" value="${r.nutrition.protein}"></label>
-            <label class="field macro-field c"><span>Carboidrati (g)</span>
-              <input class="input" name="carbs" inputmode="decimal" placeholder="0" value="${r.nutrition.carbs}"></label>
-            <label class="field macro-field f"><span>Grassi (g)</span>
-              <input class="input" name="fat" inputmode="decimal" placeholder="0" value="${r.nutrition.fat}"></label>
-          </div>
-          <label class="field"><span>Calorie totali (kcal)</span>
-            <input class="input" name="kcal" inputmode="decimal" placeholder="Calcolate in automatico" value="${r.nutrition.kcal}"></label>
-          <p class="hint" id="kcal-hint"></p>
-        </div>
-
-        <div class="card glass">
           <h2 class="card-title">Ingredienti</h2>
+          <p class="hint">Inizia a scrivere: gli alimenti della dispensa compaiono come suggerimenti e i loro valori si calcolano da soli.</p>
           <div id="ing-list">${r.ingredients.map(ingredientRow).join('')}</div>
           <button type="button" class="btn ghost small" id="add-ing">${icon.plus} Aggiungi ingrediente</button>
           <datalist id="units">${UNITS.map((u) => `<option value="${u}">`).join('')}</datalist>
+        </div>
+
+        <div class="card glass">
+          <h2 class="card-title">Valori nutrizionali</h2>
+          <div id="nut-auto" hidden></div>
+          <div id="nut-manual" class="form-stack">
+            <p class="hint">Nessun ingrediente è collegato alla dispensa: inserisci i valori <strong>per porzione</strong>.</p>
+            <div class="field-grid three">
+              <label class="field macro-field p"><span>Proteine (g)</span>
+                <input class="input" name="protein" inputmode="decimal" placeholder="0" value="${r.nutrition.protein}"></label>
+              <label class="field macro-field c"><span>Carboidrati (g)</span>
+                <input class="input" name="carbs" inputmode="decimal" placeholder="0" value="${r.nutrition.carbs}"></label>
+              <label class="field macro-field f"><span>Grassi (g)</span>
+                <input class="input" name="fat" inputmode="decimal" placeholder="0" value="${r.nutrition.fat}"></label>
+            </div>
+            <label class="field"><span>Calorie (kcal)</span>
+              <input class="input" name="kcal" inputmode="decimal" placeholder="Calcolate in automatico" value="${r.nutrition.kcal}"></label>
+            <p class="hint" id="kcal-hint"></p>
+          </div>
         </div>
 
         <div class="card glass">
@@ -527,20 +592,127 @@ function renderEditor(id, presetCategory) {
   const $ing = document.getElementById('ing-list');
   const $steps = document.getElementById('step-list');
   const $hint = document.getElementById('kcal-hint');
+  const $auto = document.getElementById('nut-auto');
+  const $manual = document.getElementById('nut-manual');
   const picker = iconPicker(document.getElementById('recipe-icon'), { emoji: r.emoji || '🍽️', photo: editing?.photo });
 
-  // Suggerimento calorie calcolate dai macro
-  const macros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
-  const updateHint = () => {
-    const k = kcalFromMacros(macros());
-    $hint.innerHTML = k
-      ? `Dai macro risultano circa <strong>${k} kcal</strong>. ${form.kcal.value ? '' : 'Se lasci vuoto il campo userò questo valore.'}`
-      : 'Inserisci i macro: le calorie si calcolano da sole (oppure scrivile tu).';
+  // ----- Lettura degli ingredienti dal form -----
+  const readRow = (row) => {
+    const qtyRaw = row.querySelector('[name=qty]').value.trim();
+    const live = store.getFood(row.dataset.foodId);
+    let food;
+    if (live) food = foodSnapshot(live);
+    else if (row.dataset.foodSnap) { try { food = JSON.parse(row.dataset.foodSnap); } catch { /* ignora */ } }
+    return {
+      qty: qtyRaw ? num(qtyRaw) : null,
+      unit: row.querySelector('[name=unit]').value.trim(),
+      name: row.querySelector('[name=ing]').value.trim(),
+      ...(food ? { foodId: row.dataset.foodId, food } : {}),
+    };
   };
-  ['protein', 'carbs', 'fat', 'kcal'].forEach((f) => form[f].addEventListener('input', updateHint));
-  updateHint();
+  const rows = () => [...$ing.querySelectorAll('.ing-row')];
+  const servings = () => Math.max(1, Math.round(num(form.servings.value)) || 1);
+  const manualMacros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
 
-  // Righe dinamiche
+  const link = (row, food, setUnit) => {
+    row.dataset.foodId = food.id;
+    row.dataset.foodSnap = '';
+    row.querySelector('[name=ing]').value = food.name;
+    const unit = row.querySelector('[name=unit]');
+    if (setUnit && !unit.value.trim()) unit.value = food.basis === 'pz' ? 'pz' : 'g';
+  };
+  const unlink = (row) => { row.dataset.foodId = ''; row.dataset.foodSnap = ''; };
+
+  // ----- Calcolo in tempo reale -----
+  const updateCalc = () => {
+    const draft = { servings: servings(), ingredients: rows().map(readRow), nutrition: { ...manualMacros(), kcal: num(form.kcal.value) } };
+    const nut = recipeNutrition(draft);
+
+    rows().forEach((row, idx) => {
+      const m = nut.perIngredient[idx];
+      const ing = draft.ingredients[idx];
+      const $calc = row.querySelector('.ing-calc');
+      if (m) $calc.innerHTML = macroLine(m);
+      else if (ing.food && ing.qty == null) $calc.innerHTML = `<span class="muted">Dalla dispensa · inserisci la quantità</span>`;
+      else if (ing.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa g, ml o ${ing.food.basis === 'pz' ? 'pz' : 'kg/l'}</span>`;
+      else $calc.innerHTML = ing.name && store.getPantry().length ? '<span class="muted">Non in dispensa</span>' : '';
+    });
+
+    $auto.hidden = !nut.auto;
+    $manual.hidden = nut.auto;
+    if (nut.auto) {
+      const t = nut.total, ps = nut.perServing;
+      $auto.innerHTML = `
+        <div class="auto-total">
+          <span class="at-label">Totale ricetta</span>
+          <span class="at-kcal">${Math.round(t.kcal)} <small>kcal</small></span>
+          <span class="at-macros">${macroLine({ ...t, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+        </div>
+        ${draft.servings > 1 ? `
+          <div class="per-serving">
+            <span class="ps-label">Per porzione</span>
+            <span class="ps-values"><strong>${Math.round(ps.kcal)} kcal</strong> · ${macroLine({ ...ps, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+          </div>` : ''}
+        <p class="hint">${icon.basket} Calcolati dagli ingredienti collegati alla dispensa.</p>`;
+    } else {
+      const k = kcalFromMacros(manualMacros());
+      $hint.innerHTML = k
+        ? `Dai macro risultano circa <strong>${k} kcal</strong>. ${form.kcal.value ? '' : 'Se lasci vuoto il campo userò questo valore.'}`
+        : 'Inserisci i macro: le calorie si calcolano da sole (oppure scrivile tu).';
+    }
+    return nut;
+  };
+
+  // ----- Suggerimenti dalla dispensa -----
+  const showSuggest = (row) => {
+    const box = row.querySelector('.suggest');
+    const q = row.querySelector('[name=ing]').value.trim().toLowerCase();
+    const items = store.getPantry()
+      .filter((f) => f.name.toLowerCase().includes(q) && f.id !== row.dataset.foodId)
+      .slice(0, 6);
+    box.hidden = !items.length;
+    box.innerHTML = items.map((f) => `
+      <button type="button" data-food="${f.id}">
+        <span>${esc(f.name)}</span><small>${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</small>
+      </button>`).join('');
+  };
+
+  $ing.addEventListener('input', (e) => {
+    const row = e.target.closest('.ing-row');
+    if (!row) return;
+    if (e.target.name === 'ing') {
+      const match = store.findFoodByName(e.target.value);
+      match ? link(row, match, false) : unlink(row);
+      showSuggest(row);
+    }
+    updateCalc();
+  });
+  $ing.addEventListener('focusin', (e) => {
+    if (e.target.name === 'ing') showSuggest(e.target.closest('.ing-row'));
+  });
+  $ing.addEventListener('focusout', (e) => {
+    if (e.target.name === 'ing') {
+      const box = e.target.closest('.ing-row').querySelector('.suggest');
+      setTimeout(() => (box.hidden = true), 150);
+    }
+  });
+  // pointerdown + preventDefault: il tocco sul suggerimento non chiude la tastiera prima del tempo
+  $ing.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.suggest [data-food]');
+    if (!btn) return;
+    e.preventDefault();
+    const row = btn.closest('.ing-row');
+    link(row, store.getFood(btn.dataset.food), true);
+    row.querySelector('.suggest').hidden = true;
+    updateCalc();
+    const qty = row.querySelector('[name=qty]');
+    if (!qty.value) qty.focus();
+  });
+
+  ['protein', 'carbs', 'fat', 'kcal', 'servings'].forEach((f) => form[f].addEventListener('input', updateCalc));
+  updateCalc();
+
+  // ----- Righe dinamiche -----
   const renumber = () => $steps.querySelectorAll('.step-n').forEach((el, i) => (el.textContent = i + 1));
   renumber();
   document.getElementById('add-ing').onclick = () => {
@@ -555,10 +727,12 @@ function renderEditor(id, presetCategory) {
   form.addEventListener('click', (e) => {
     const btn = e.target.closest('.remove');
     if (!btn) return;
-    btn.parentElement.remove();
+    btn.closest('.ing-row, .step-row').remove();
     renumber();
+    updateCalc();
   });
 
+  // ----- Salvataggio -----
   form.onsubmit = async (e) => {
     e.preventDefault();
     const name = form.name.value.trim();
@@ -566,8 +740,10 @@ function renderEditor(id, presetCategory) {
       form.name.focus();
       return toast('Dai un nome alla ricetta');
     }
+    const nut = updateCalc();
     const { emoji, photo } = await picker.commit();
-    const m = macros();
+    const m = manualMacros();
+    const round1 = (x) => Math.round(x * 10) / 10;
     const recipe = {
       id: editing?.id,
       name,
@@ -575,22 +751,156 @@ function renderEditor(id, presetCategory) {
       photo,
       categoryId: form.category.value,
       time: Math.round(num(form.time.value)) || null,
-      servings: Math.max(1, Math.round(num(form.servings.value)) || 1),
-      ingredients: [...$ing.querySelectorAll('.ing-row')]
-        .map((row) => ({
-          qty: row.querySelector('[name=qty]').value.trim() ? num(row.querySelector('[name=qty]').value) : null,
-          unit: row.querySelector('[name=unit]').value.trim(),
-          name: row.querySelector('[name=ing]').value.trim(),
-        }))
-        .filter((i) => i.name),
+      servings: servings(),
+      ingredients: rows().map(readRow).filter((i) => i.name),
       steps: [...$steps.querySelectorAll('textarea')].map((t) => t.value.trim()).filter(Boolean),
       notes: form.notes.value.trim(),
-      nutrition: { ...m, kcal: form.kcal.value.trim() ? num(form.kcal.value) : kcalFromMacros(m) },
+      // Sempre per porzione: calcolati dalla dispensa oppure inseriti a mano
+      nutrition: nut.auto
+        ? Object.fromEntries(Object.entries(nut.perServing).map(([k, v]) => [k, round1(v)]))
+        : { ...m, kcal: form.kcal.value.trim() ? num(form.kcal.value) : kcalFromMacros(m) },
     };
     const savedId = store.saveRecipe(recipe);
     toast(editing ? 'Modifiche salvate' : 'Ricetta salvata');
     go(`#/ricetta/${savedId}`, true);
   };
+}
+
+// =============================================================
+//  DISPENSA — alimenti con i loro valori nutrizionali
+// =============================================================
+function renderPantry() {
+  setTab('dispensa');
+  setNav({ title: 'Dispensa' });
+
+  $view.innerHTML = `
+    <section class="page">
+      <h1 class="large-title">Dispensa</h1>
+      <p class="subtitle">Gli alimenti che usi spesso, con i valori per 100 g o per pezzo.</p>
+      <label class="search glass">
+        ${icon.search}
+        <input id="pq" type="search" placeholder="Cerca un alimento" autocomplete="off">
+      </label>
+      <div id="pantry-list" class="pantry-list"></div>
+    </section>
+    <button class="fab" id="add-food" aria-label="Nuovo alimento">${icon.plus}</button>`;
+
+  const $list = document.getElementById('pantry-list');
+  const $q = document.getElementById('pq');
+
+  const draw = () => {
+    const q = $q.value.trim().toLowerCase();
+    const all = store.getPantry();
+    const foods = all.filter((f) => f.name.toLowerCase().includes(q));
+    if (!all.length) {
+      $list.innerHTML = `
+        <div class="empty-state glass">
+          <span class="big-emoji">🧺</span>
+          <p>La dispensa è vuota. Aggiungi gli alimenti che usi spesso: nelle ricette i loro valori si calcoleranno da soli.</p>
+          <button class="btn primary" id="first-food">Aggiungi il primo alimento</button>
+        </div>`;
+      document.getElementById('first-food').onclick = () => foodSheet();
+      return;
+    }
+    $list.innerHTML = foods.length
+      ? `<div class="list">${foods.map((f) => `
+          <button class="row glass food-row" data-id="${f.id}">
+            <span class="row-emoji food-initial">${esc(f.name.trim().charAt(0).toUpperCase())}</span>
+            <span class="row-body">
+              <span class="row-title">${esc(f.name)}</span>
+              <span class="row-meta">${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</span>
+              ${macroChips(f)}
+            </span>
+            <span class="row-chev">${icon.chevron}</span>
+          </button>`).join('')}</div>`
+      : `<p class="empty">Nessun alimento trovato per “${esc(q)}”.</p>`;
+  };
+
+  $list.addEventListener('click', (e) => {
+    const row = e.target.closest('.food-row');
+    if (row) foodSheet(store.getFood(row.dataset.id));
+  });
+  $q.addEventListener('input', draw);
+  document.getElementById('add-food').onclick = () => foodSheet();
+  draw();
+}
+
+function foodSheet(food = null) {
+  let basis = food?.basis || 'g';
+  openSheet(
+    `<h3 class="sheet-title">${food ? 'Modifica alimento' : 'Nuovo alimento'}</h3>
+     <form id="food-form" class="form">
+       <input class="input" name="name" placeholder="Nome (es. Zucca)" value="${esc(food?.name || '')}" required>
+       <div class="field">
+         <span>I valori si riferiscono a</span>
+         <div class="segmented" id="basis">
+           <button type="button" data-basis="g" class="${basis === 'g' ? 'on' : ''}">100 g / 100 ml</button>
+           <button type="button" data-basis="pz" class="${basis === 'pz' ? 'on' : ''}">1 pezzo</button>
+         </div>
+       </div>
+       <div class="field-grid three">
+         <label class="field macro-field p"><span>Proteine (g)</span>
+           <input class="input" name="protein" inputmode="decimal" placeholder="0" value="${food?.protein ?? ''}"></label>
+         <label class="field macro-field c"><span>Carboidrati (g)</span>
+           <input class="input" name="carbs" inputmode="decimal" placeholder="0" value="${food?.carbs ?? ''}"></label>
+         <label class="field macro-field f"><span>Grassi (g)</span>
+           <input class="input" name="fat" inputmode="decimal" placeholder="0" value="${food?.fat ?? ''}"></label>
+       </div>
+       <label class="field"><span>Calorie (kcal)</span>
+         <input class="input" name="kcal" inputmode="decimal" placeholder="Calcolate in automatico" value="${food?.kcal ?? ''}"></label>
+       <p class="hint" id="food-hint"></p>
+       <button class="btn primary full" type="submit">${food ? 'Salva' : 'Aggiungi alla dispensa'}</button>
+       ${food ? `<button type="button" class="btn danger-ghost full" id="del-food">${icon.trash} Elimina alimento</button>` : ''}
+     </form>`,
+    (sheet, close) => {
+      const form = sheet.querySelector('#food-form');
+      const $hint = sheet.querySelector('#food-hint');
+      const macros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
+      const updateHint = () => {
+        const k = kcalFromMacros(macros());
+        const per = basis === 'pz' ? 'per pezzo' : 'per 100 g';
+        $hint.innerHTML = k
+          ? `Dai macro risultano circa <strong>${k} kcal</strong> ${per}.${form.kcal.value ? '' : ' Se lasci vuoto userò questo valore.'}`
+          : `Per i liquidi conta 1 ml come 1 g.`;
+      };
+      sheet.querySelectorAll('[data-basis]').forEach((b) =>
+        b.addEventListener('click', () => {
+          basis = b.dataset.basis;
+          sheet.querySelectorAll('[data-basis]').forEach((x) => x.classList.toggle('on', x === b));
+          updateHint();
+        })
+      );
+      ['protein', 'carbs', 'fat', 'kcal'].forEach((f) => form[f].addEventListener('input', updateHint));
+      updateHint();
+
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const name = form.name.value.trim();
+        if (!name) return form.name.focus();
+        const other = store.findFoodByName(name);
+        if (other && other.id !== food?.id) return toast('C’è già un alimento con questo nome');
+        store.saveFood({
+          id: food?.id, name, basis, ...macros(),
+          kcal: form.kcal.value.trim() ? num(form.kcal.value) : null,
+        });
+        close();
+        toast(food ? 'Alimento aggiornato' : 'Aggiunto alla dispensa');
+        router();
+      };
+
+      sheet.querySelector('#del-food')?.addEventListener('click', async () => {
+        const used = store.recipesUsingFood(food.id).length;
+        const msg = used
+          ? `“${food.name}” è usato in ${used === 1 ? '1 ricetta' : `${used} ricette`}: lì resteranno i valori di adesso. Eliminarlo dalla dispensa?`
+          : `Eliminare “${food.name}” dalla dispensa?`;
+        if (await confirmSheet(msg, { okText: 'Elimina', danger: true })) {
+          store.deleteFood(food.id);
+          toast('Alimento eliminato');
+          router();
+        }
+      });
+    }
+  );
 }
 
 // =============================================================
