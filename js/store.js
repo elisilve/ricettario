@@ -13,8 +13,11 @@
 //    steps       -> [ "testo passaggio", ... ]
 //    notes,
 //    nutrition   -> { kcal, protein, carbs, fat }  PER PORZIONE
+//    photo       -> id della foto (vedi images.js); se manca si usa l'emoji
 //    createdAt, updatedAt
 //  }
+
+import { allImages, replaceAll as replaceImages } from './images.js';
 
 const STORAGE_KEY = 'ricettario:v1';
 
@@ -94,13 +97,13 @@ function persist(d = data) {
 export const getCategories = () => data.categories;
 export const getCategory = (id) => data.categories.find((c) => c.id === id);
 
-export function saveCategory({ id, name, emoji }) {
+export function saveCategory({ id, name, emoji, photo = null }) {
   if (id) {
     const c = getCategory(id);
-    Object.assign(c, { name, emoji });
+    Object.assign(c, { name, emoji, photo });
   } else {
     id = uid();
-    data.categories.push({ id, name, emoji });
+    data.categories.push({ id, name, emoji, photo });
   }
   persist();
   return id;
@@ -138,13 +141,16 @@ export function deleteRecipe(id) {
 }
 
 // ---------- Backup ----------
-export const exportJSON = () => JSON.stringify(data, null, 2);
+// Il backup include anche le foto
+export const exportJSON = () => JSON.stringify({ ...data, images: allImages() });
 
-export function importJSON(text) {
+export async function importJSON(text) {
   const parsed = JSON.parse(text);
   if (!parsed || !Array.isArray(parsed.categories) || !Array.isArray(parsed.recipes)) {
     throw new Error('File non valido');
   }
-  data = parsed;
+  const { images = {}, ...rest } = parsed;
+  data = rest;
   persist();
+  await replaceImages(images);
 }

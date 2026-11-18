@@ -2,7 +2,7 @@
 // Strategia "stale-while-revalidate": mostra subito la versione in cache
 // e intanto scarica quella nuova (che vedrai alla prossima apertura).
 // Quando cambi la lista dei file, aumenta il numero di versione.
-const CACHE = 'ricettario-v2';
+const CACHE = 'ricettario-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
   './js/app.js',
   './js/store.js',
   './js/ui.js',
+  './js/images.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/apple-touch-icon.png',

@@ -2,6 +2,7 @@
 //  app.js — navigazione (router) e schermate dell'app
 // =============================================================
 import * as store from './store.js';
+import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
 
 const $view = document.getElementById('view');
@@ -41,10 +42,11 @@ const go = (hash, replace = false) => (replace ? location.replace(hash) : (locat
 // ---------- Barra di navigazione ----------
 function setNav({ title = '', back = null, right = '' }) {
   $navTitle.textContent = title;
-  $navLeft.innerHTML =
-    themeButton() +
-    (back ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>` : '');
-  $navRight.innerHTML = right;
+  $navLeft.innerHTML = back
+    ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>`
+    : '';
+  // Il pulsante sole/luna sta sempre a destra, prima degli altri pulsanti
+  $navRight.innerHTML = themeButton() + right;
 }
 
 // ---------- Tema chiaro / scuro ----------
@@ -62,12 +64,12 @@ const themeButton = () => {
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  document.getElementById('theme-color').content = theme === 'dark' ? '#333333' : '#eef0f6';
+  document.getElementById('theme-color').content = theme === 'dark' ? '#131313' : '#eef0f6';
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage non disponibile */ }
   document.getElementById('theme-toggle').outerHTML = themeButton();
 }
 
-$navLeft.addEventListener('click', (e) => {
+$navRight.addEventListener('click', (e) => {
   if (e.target.closest('#theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
 });
 
@@ -77,6 +79,12 @@ function onScroll() {
 window.addEventListener('scroll', onScroll, { passive: true });
 
 // ---------- Componenti ----------
+/** Icona di ricetta o categoria: la foto se c'è, altrimenti l'emoji */
+const avatar = (item, fallback = '🍽️') => {
+  const src = getImage(item?.photo);
+  return src ? `<img class="avatar-img" src="${esc(src)}" alt="">` : esc(item?.emoji || fallback);
+};
+
 const macroChips = (n) => `
   <span class="chips">
     <i class="chip p">P ${fmt(n.protein)}g</i>
@@ -86,7 +94,7 @@ const macroChips = (n) => `
 
 const recipeRow = (r) => `
   <a class="row glass" href="#/ricetta/${r.id}">
-    <span class="row-emoji">${esc(r.emoji || '🍽️')}</span>
+    <span class="row-emoji">${avatar(r)}</span>
     <span class="row-body">
       <span class="row-title">${esc(r.name)}</span>
       <span class="row-meta">${r.time ? `${r.time} min · ` : ''}${fmt(r.nutrition.kcal)} kcal</span>
@@ -137,7 +145,7 @@ function renderHome() {
       <div class="grid">
         ${store.getCategories().map((c) => `
           <a class="cat glass" href="#/categoria/${c.id}">
-            <span class="cat-emoji">${esc(c.emoji)}</span>
+            <span class="cat-emoji">${avatar(c)}</span>
             <span class="cat-name">${esc(c.name)}</span>
             <span class="cat-count">${countLabel(store.recipesIn(c.id).length)}</span>
           </a>`).join('')}
@@ -173,12 +181,12 @@ function renderCategory(id) {
 
   $view.innerHTML = `
     <section class="page">
-      <h1 class="large-title"><span class="title-emoji">${esc(cat.emoji)}</span>${esc(cat.name)}</h1>
+      <h1 class="large-title"><span class="title-emoji">${avatar(cat)}</span>${esc(cat.name)}</h1>
       <p class="subtitle">${countLabel(recipes.length)}</p>
       ${recipes.length
         ? `<div class="list">${recipes.map(recipeRow).join('')}</div>`
         : `<div class="empty-state glass">
-             <span class="big-emoji">${esc(cat.emoji)}</span>
+             <span class="big-emoji">${avatar(cat)}</span>
              <p>Ancora nessuna ricetta in questa categoria.</p>
              <a class="btn primary" href="#/nuova/${id}">Aggiungi la prima ricetta</a>
            </div>`}
@@ -194,6 +202,7 @@ function renderCategory(id) {
         run: async () => {
           if (recipes.length) return toast('Sposta o elimina prima le ricette della categoria');
           if (await confirmSheet(`Eliminare la categoria “${cat.name}”?`, { okText: 'Elimina', danger: true })) {
+            await deleteImage(cat.photo);
             store.deleteCategory(id);
             toast('Categoria eliminata');
             go('#/', true);
@@ -206,30 +215,102 @@ function renderCategory(id) {
 // Sheet per creare / modificare una categoria
 const EMOJI_PICKS = ['🥣', '🍝', '🍗', '🐟', '🥗', '🍲', '🍕', '🥪', '🍰', '🍪', '🥜', '🥤', '🍳', '🌱', '🍜', '🥘'];
 
+/**
+ * Selettore dell'icona: emoji oppure foto dalla galleria.
+ * Restituisce { commit() } che salva la foto (se serve) e dà { emoji, photo }.
+ */
+function iconPicker(container, { emoji = '🍽️', photo = null } = {}) {
+  const st = { mode: getImage(photo) ? 'photo' : 'emoji', emoji, newData: null };
+
+  const draw = () => {
+    const src = st.newData || getImage(photo);
+    const isPhoto = st.mode === 'photo';
+    container.innerHTML = `
+      <div class="icon-picker">
+        <label class="ip-preview ${isPhoto ? 'is-photo' : ''}">
+          ${isPhoto
+            ? (src ? `<img src="${esc(src)}" alt="">` : `<span class="ip-cam">${icon.camera}</span>`)
+            : `<span class="ip-emoji">${esc(st.emoji)}</span>`}
+          ${isPhoto ? '<input type="file" accept="image/*" hidden>' : ''}
+        </label>
+        <div class="ip-side">
+          <div class="segmented" role="tablist">
+            <button type="button" data-mode="emoji" class="${!isPhoto ? 'on' : ''}">Emoji</button>
+            <button type="button" data-mode="photo" class="${isPhoto ? 'on' : ''}">Foto</button>
+          </div>
+          ${isPhoto
+            ? `<label class="btn ghost small ip-choose">${icon.camera} ${src ? 'Cambia foto' : 'Scegli dalla galleria'}
+                 <input type="file" accept="image/*" hidden></label>`
+            : `<input class="input ip-field" maxlength="4" value="${esc(st.emoji)}" aria-label="Emoji">`}
+        </div>
+      </div>
+      ${isPhoto ? '' : `
+        <div class="emoji-picks">
+          ${EMOJI_PICKS.map((e) => `<button type="button" class="emoji-pick" data-e="${e}">${e}</button>`).join('')}
+        </div>`}`;
+
+    container.querySelectorAll('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => { st.mode = b.dataset.mode; draw(); })
+    );
+    const field = container.querySelector('.ip-field');
+    const preview = container.querySelector('.ip-emoji');
+    field?.addEventListener('input', () => {
+      st.emoji = field.value.trim() || '🍽️';
+      preview.textContent = st.emoji;
+    });
+    container.querySelectorAll('.emoji-pick').forEach((b) =>
+      b.addEventListener('click', () => {
+        st.emoji = field.value = preview.textContent = b.dataset.e;
+      })
+    );
+    container.querySelectorAll('input[type=file]').forEach((input) =>
+      input.addEventListener('change', async () => {
+        const f = input.files[0];
+        if (!f) return;
+        try {
+          st.newData = await fileToDataUrl(f);
+          draw();
+        } catch {
+          toast('Non riesco a leggere questa foto');
+        }
+      })
+    );
+  };
+  draw();
+
+  return {
+    async commit() {
+      if (st.mode === 'photo' && st.newData) {
+        await deleteImage(photo);
+        const id = store.uid();
+        await putImage(id, st.newData);
+        return { emoji: st.emoji, photo: id };
+      }
+      if (st.mode === 'photo' && getImage(photo)) return { emoji: st.emoji, photo };
+      // Modalità emoji (o foto non scelta): l'eventuale foto precedente si elimina
+      await deleteImage(photo);
+      return { emoji: st.emoji, photo: null };
+    },
+  };
+}
+
 function categorySheet(cat = null) {
   openSheet(
     `<h3 class="sheet-title">${cat ? 'Modifica categoria' : 'Nuova categoria'}</h3>
      <form id="cat-form" class="form">
-       <div class="field-row">
-         <input class="input emoji-input" name="emoji" maxlength="4" value="${esc(cat?.emoji || '🍽️')}" aria-label="Emoji">
-         <input class="input" name="name" placeholder="Nome categoria" value="${esc(cat?.name || '')}" required>
-       </div>
-       <div class="emoji-picks">
-         ${EMOJI_PICKS.map((e) => `<button type="button" class="emoji-pick" data-e="${e}">${e}</button>`).join('')}
-       </div>
+       <div id="cat-icon"></div>
+       <input class="input" name="name" placeholder="Nome categoria" value="${esc(cat?.name || '')}" required>
        <button class="btn primary full" type="submit">${cat ? 'Salva' : 'Crea categoria'}</button>
      </form>`,
     (sheet, close) => {
       const form = sheet.querySelector('#cat-form');
-      sheet.querySelectorAll('.emoji-pick').forEach((b) =>
-        b.addEventListener('click', () => (form.emoji.value = b.dataset.e))
-      );
-      if (!cat) setTimeout(() => form.name.focus(), 300);
-      form.onsubmit = (e) => {
+      const picker = iconPicker(sheet.querySelector('#cat-icon'), { emoji: cat?.emoji || '🍽️', photo: cat?.photo });
+      form.onsubmit = async (e) => {
         e.preventDefault();
         const name = form.name.value.trim();
-        if (!name) return;
-        const id = store.saveCategory({ id: cat?.id, name, emoji: form.emoji.value.trim() || '🍽️' });
+        if (!name) return form.name.focus();
+        const { emoji, photo } = await picker.commit();
+        const id = store.saveCategory({ id: cat?.id, name, emoji, photo });
         close();
         toast(cat ? 'Categoria aggiornata' : 'Categoria creata');
         cat ? router() : go(`#/categoria/${id}`);
@@ -263,10 +344,10 @@ function renderRecipe(id) {
   $view.innerHTML = `
     <section class="page recipe">
       <div class="hero">
-        <span class="hero-emoji glass">${esc(r.emoji || '🍽️')}</span>
+        <span class="hero-emoji glass">${avatar(r)}</span>
         <h1 class="large-title center">${esc(r.name)}</h1>
         <div class="pills">
-          ${cat ? `<span class="pill glass">${esc(cat.emoji)} ${esc(cat.name)}</span>` : ''}
+          ${cat ? `<span class="pill glass"><span class="pill-icon">${avatar(cat)}</span> ${esc(cat.name)}</span>` : ''}
           ${r.time ? `<span class="pill glass">${icon.clock} ${r.time} min</span>` : ''}
         </div>
       </div>
@@ -339,6 +420,7 @@ function renderRecipe(id) {
 
   document.getElementById('delete').onclick = async () => {
     if (await confirmSheet(`Eliminare “${r.name}”? L’operazione non si può annullare.`, { okText: 'Elimina', danger: true })) {
+      await deleteImage(r.photo);
       store.deleteRecipe(r.id);
       toast('Ricetta eliminata');
       go(cat ? `#/categoria/${cat.id}` : '#/', true);
@@ -388,10 +470,8 @@ function renderEditor(id, presetCategory) {
       <h1 class="large-title">${editing ? 'Modifica ricetta' : 'Nuova ricetta'}</h1>
       <form id="recipe-form" class="form" novalidate>
         <div class="card glass">
-          <div class="field-row">
-            <input class="input emoji-input" name="emoji" maxlength="4" value="${esc(r.emoji)}" aria-label="Emoji">
-            <input class="input" name="name" placeholder="Nome della ricetta" value="${esc(r.name)}" required>
-          </div>
+          <div id="recipe-icon"></div>
+          <input class="input" name="name" placeholder="Nome della ricetta" value="${esc(r.name)}" required>
           <label class="field">
             <span>Categoria</span>
             <select class="input" name="category">
@@ -447,6 +527,7 @@ function renderEditor(id, presetCategory) {
   const $ing = document.getElementById('ing-list');
   const $steps = document.getElementById('step-list');
   const $hint = document.getElementById('kcal-hint');
+  const picker = iconPicker(document.getElementById('recipe-icon'), { emoji: r.emoji || '🍽️', photo: editing?.photo });
 
   // Suggerimento calorie calcolate dai macro
   const macros = () => ({ protein: num(form.protein.value), carbs: num(form.carbs.value), fat: num(form.fat.value) });
@@ -478,18 +559,20 @@ function renderEditor(id, presetCategory) {
     renumber();
   });
 
-  form.onsubmit = (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
     const name = form.name.value.trim();
     if (!name) {
       form.name.focus();
       return toast('Dai un nome alla ricetta');
     }
+    const { emoji, photo } = await picker.commit();
     const m = macros();
     const recipe = {
       id: editing?.id,
       name,
-      emoji: form.emoji.value.trim() || '🍽️',
+      emoji,
+      photo,
       categoryId: form.category.value,
       time: Math.round(num(form.time.value)) || null,
       servings: Math.max(1, Math.round(num(form.servings.value)) || 1),
@@ -540,7 +623,7 @@ function settingsSheet() {
         if (!f) return;
         if (!(await confirmSheet('Importando il backup sostituirai le ricette attuali. Continuare?', { okText: 'Importa' }))) return;
         try {
-          store.importJSON(await f.text());
+          await store.importJSON(await f.text());
           toast('Backup importato');
           go('#/', true);
           router();
@@ -554,6 +637,7 @@ function settingsSheet() {
 
 // ---------- Avvio ----------
 window.addEventListener('hashchange', router);
+await initImages(); // carica le foto prima di disegnare
 router();
 
 // Service worker: rende l'app installabile e utilizzabile offline.
