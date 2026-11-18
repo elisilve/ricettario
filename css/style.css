@@ -640,3 +640,11 @@ body.auth-open .navbar, body.auth-open .tabbar, body.auth-open .view { visibilit
 .acct-actions { margin-top: 22px; }
 /* I messaggi temporanei in alto non bloccano i tocchi */
 .toast { pointer-events: none; }
+
+.share-btn {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  height: 32px; padding: 0 12px 0 9px; border-radius: 99px;
+  font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
+}
+.share-btn svg { width: 15px; height: 15px; }
+.share-btn:active { opacity: .6; }

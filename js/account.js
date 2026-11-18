@@ -2,6 +2,7 @@
 //  account.js — schermata di accesso e pannello "Account"
 // =============================================================
 import * as cloud from './cloud.js';
+import { PUBLIC_URL } from './config.js';
 import { esc, icon, toast, openSheet, confirmSheet } from './ui.js';
 
 const ROLE_LABEL = { owner: 'Titolare', editor: 'Può modificare', viewer: 'Solo lettura' };
@@ -128,6 +129,25 @@ export function authScreen({ mode = 'login', message = '' } = {}) {
   });
 }
 
+/** Messaggio d'invito pronto da mandare: menu Condividi dell'iPhone, oppure copia negli appunti */
+async function shareInvite(email) {
+  const url = PUBLIC_URL || location.origin + location.pathname;
+  const text =
+    `Ciao! Ti ho invitato nel mio ricettario “${cloud.book.name}” 🍽️\n` +
+    `Apri l'app, tocca “Crea account” e registrati con questa email: ${email}\n` +
+    `Troverai già tutte le ricette.`;
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Ricettario', text, url }); } catch { /* annullato */ }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    toast('Messaggio copiato: incollalo dove vuoi');
+  } catch {
+    toast('Copia non riuscita');
+  }
+}
+
 // =============================================================
 //  Pannello Account
 // =============================================================
@@ -165,6 +185,7 @@ export function accountSheet({ onSwitched, onBackup }) {
               </select>
               <button type="button" class="icon-btn danger" data-remove="${p.user_id}" aria-label="Rimuovi">${icon.x}</button>` : ''}
             ${pending && cloud.isOwner() ? `
+              <button type="button" class="share-btn" data-share="${esc(p.email)}" aria-label="Condividi invito">${icon.share}<span>Invia</span></button>
               <button type="button" class="icon-btn danger" data-cancel="${esc(p.email)}" aria-label="Annulla invito">${icon.x}</button>` : ''}
           </div>`;
       };
@@ -206,7 +227,7 @@ export function accountSheet({ onSwitched, onBackup }) {
                 <button type="button" data-role="editor" class="${inviteRole === 'editor' ? 'on' : ''}">Vedere e modificare</button>
               </div>
               <button class="btn primary full" type="submit">Invita</button>
-              <p class="hint">La persona deve creare un account (o accedere) con questa email: entrerà da sola nel tuo ricettario.</p>
+              <p class="hint">Dopo l'invito tocca <strong>Invia</strong> per mandarle il link (WhatsApp, Messaggi, Mail…). Quando crea l'account con questa email entra da sola nel tuo ricettario.</p>
             </form>` : `
             <p class="hint">Sei in questo ricettario come: <strong>${ROLE_LABEL[b.role]}</strong>.</p>
             <button type="button" class="btn ghost full danger-text" id="leave">Esci da questo ricettario</button>`}
@@ -263,6 +284,10 @@ export function accountSheet({ onSwitched, onBackup }) {
             accountSheet({ onSwitched, onBackup });
           })
         );
+        // Condividi l'invito (WhatsApp, Messaggi, Mail…): l'app non manda email da sola
+        $acct.querySelectorAll('[data-share]').forEach((btn) =>
+          btn.addEventListener('click', () => shareInvite(btn.dataset.share))
+        );
         $acct.querySelectorAll('[data-cancel]').forEach((btn) =>
           btn.addEventListener('click', async () => {
             try { await cloud.cancelInvite(btn.dataset.cancel); toast('Invito annullato'); } catch (e) { toast(errorText(e)); }
@@ -287,8 +312,8 @@ export function accountSheet({ onSwitched, onBackup }) {
             if (people.members.some((m) => m.email === email)) return toast('Questa persona ha già accesso');
             try {
               await cloud.invite(email, inviteRole);
-              toast('Invito creato');
               await load();
+              toast('Invito creato: ora tocca “Invia” per mandarglielo');
             } catch (err) { toast(errorText(err)); }
           };
         }
