@@ -490,9 +490,9 @@ function renderRecipe(id) {
           const f = resolveFood(i);
           const avatarHtml = !anyLinked ? '' : f
             ? `<span class="ing-avatar">${foodAvatar(f)}</span>`
-            : '<span class="ing-avatar empty"></span>';
+            : '<span class="ing-avatar blank"></span>';
           return `
-            <li>
+            <li class="${m ? '' : 'compact'}">
               <div class="ing-main">
                 <span class="ing-name">${avatarHtml}${esc(i.name)}</span>
                 <span class="ing-qty">${q} ${esc(i.unit || '')}</span>

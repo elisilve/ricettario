@@ -307,7 +307,12 @@ svg { flex-shrink: 0; }
 
 .ingredients { list-style: none; margin: 0; padding: 0; }
 .ingredients li { padding: 11px 0; border-bottom: 1px solid var(--hairline); }
-.ing-main { display: flex; justify-content: space-between; gap: 12px; }
+.ing-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+/* Nome con icona: allineati al centro (il segnaposto vuoto non deve allungare la riga) */
+.ing-name { display: flex; align-items: center; min-width: 0; }
+/* Ingredienti senza valori (es. q.b., pizzico): riga più bassa */
+.ingredients li.compact { padding-top: 7px; padding-bottom: 7px; }
+.ingredients li.compact .ing-avatar { height: 18px; }
 .ing-macros { margin-top: 3px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ingredients li:last-child { border-bottom: 0; padding-bottom: 0; }
 .ing-qty { color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -557,7 +562,7 @@ html.sheet-open, html.sheet-open body { overflow: hidden; }
 .sg-name { display: inline-flex; align-items: center; min-width: 0; }
 .ip-emoji.is-placeholder { color: var(--accent); font-weight: 700; font-size: 34px; }
 
-.ing-avatar.empty { background: transparent; }
+.ing-avatar.blank { background: transparent; }
 /* i macro sotto l'ingrediente partono allineati al nome quando c'è l'icona */
 .ingredients li:has(.ing-avatar) .ing-macros { padding-left: 34px; }
 
