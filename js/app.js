@@ -5,7 +5,7 @@ import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import * as cloud from './cloud.js';
 import { authScreen, accountSheet, errorText } from './account.js';
-import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet } from './ui.js';
+import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet, themeRow, bindThemeRow } from './ui.js';
 import { recipeNutrition, foodKcal, isNegligible, resolveFood } from './nutrition.js';
 
 const $view = document.getElementById('view');
@@ -61,33 +61,12 @@ function setNav({ title = '', back = null, right = '' }) {
   $navLeft.innerHTML = back
     ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>`
     : '';
-  // In ogni schermata: sole/luna, poi i pulsanti della pagina, poi l'account
-  $navRight.innerHTML = themeButton() + right +
+  // In ogni schermata: i pulsanti della pagina, poi l'account (dove c'è anche il tema)
+  $navRight.innerHTML = right +
     `<button class="nav-btn icon" id="user-btn" aria-label="Account">${icon.user}</button>`;
 }
 
-// ---------- Tema chiaro / scuro ----------
-// L'icona mostra la modalità attuale: sole = chiara, luna = scura
-const THEME_KEY = 'ricettario:theme';
-const currentTheme = () => document.documentElement.dataset.theme || 'light';
-
-const themeButton = () => {
-  const dark = currentTheme() === 'dark';
-  return `<button class="nav-btn theme-toggle" id="theme-toggle"
-            aria-label="${dark ? 'Passa alla modalità chiara' : 'Passa alla modalità scura'}">
-            ${dark ? icon.moon : icon.sun}
-          </button>`;
-};
-
-function setTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  document.getElementById('theme-color').content = theme === 'dark' ? '#131313' : '#eef0f6';
-  try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage non disponibile */ }
-  document.getElementById('theme-toggle').outerHTML = themeButton();
-}
-
 $navRight.addEventListener('click', (e) => {
-  if (e.target.closest('#theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
   if (e.target.closest('#user-btn')) openAccount();
 });
 
@@ -1040,6 +1019,7 @@ function foodSheet(food = null, opts = {}) {
 function settingsSheet() {
   openSheet(
     `<h3 class="sheet-title">${cloud.enabled ? 'Backup' : 'Impostazioni'}</h3>
+     ${cloud.enabled ? '' : themeRow()}
      <p class="sheet-msg">Le ricette sono salvate su questo dispositivo. Fai ogni tanto un backup per non perderle.</p>
      <div class="action-list">
        <button class="action" id="export">Esporta backup (.json)</button>
@@ -1047,6 +1027,7 @@ function settingsSheet() {
      </div>
      <button class="btn ghost full" data-close>Chiudi</button>`,
     (sheet, close) => {
+      bindThemeRow(sheet);
       sheet.querySelector('#export').onclick = async () => {
         const date = new Date().toISOString().slice(0, 10);
         const file = new File([store.exportJSON()], `ricettario-backup-${date}.json`, { type: 'application/json' });

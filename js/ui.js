@@ -43,6 +43,37 @@ export const icon = {
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
 };
 
+// ---------- Tema chiaro / scuro ----------
+const THEME_KEY = 'ricettario:theme';
+export const currentTheme = () => document.documentElement.dataset.theme || 'light';
+
+export function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.getElementById('theme-color').content = theme === 'dark' ? '#131313' : '#eef0f6';
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage non disponibile */ }
+}
+
+/** Voce "Tema" con la scelta Chiaro / Scuro (nel pannello Account e nelle Impostazioni) */
+export const themeRow = () => `
+  <div class="theme-row">
+    <span class="theme-label">${currentTheme() === 'dark' ? icon.moon : icon.sun} Tema</span>
+    <div class="segmented theme-seg">
+      <button type="button" data-theme-set="light" class="${currentTheme() === 'light' ? 'on' : ''}">Chiaro</button>
+      <button type="button" data-theme-set="dark" class="${currentTheme() === 'dark' ? 'on' : ''}">Scuro</button>
+    </div>
+  </div>`;
+
+/** Collega i pulsanti della voce "Tema" dentro un contenitore */
+export function bindThemeRow(container) {
+  container.querySelectorAll('[data-theme-set]').forEach((b) =>
+    b.addEventListener('click', () => {
+      setTheme(b.dataset.themeSet);
+      container.querySelector('.theme-row').outerHTML = themeRow();
+      bindThemeRow(container);
+    })
+  );
+}
+
 // ---------- Toast ----------
 let toastTimer;
 export function toast(msg) {

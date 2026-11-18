@@ -658,3 +658,46 @@ body.auth-open .navbar, body.auth-open .tabbar, body.auth-open .view { visibilit
 .acct-tabs { margin-top: 6px; }
 .pw-form { display: flex; flex-direction: column; gap: 10px; }
 .pw-form .acct-h { margin-bottom: 0; }
+
+/* Voce "Tema" (Chiaro / Scuro) */
+.theme-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 22px; padding: 10px 12px 10px 14px; border-radius: 16px; background: var(--input-bg);
+}
+.theme-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.theme-label svg { width: 20px; height: 20px; color: var(--text-2); }
+.theme-seg { width: 170px; background: var(--input-bg); }
+.theme-row + .acct-actions { margin-top: 10px; }
+.sheet > .theme-row { margin: 4px 0 14px; }
+
+/* Pannello Account: scheda Impostazioni */
+.acct-tabs.three { grid-template-columns: repeat(3, 1fr); }
+.acct-tabs.three button { font-size: 14px; }
+.acct-settings { margin-top: 4px; }
+.acct-settings .theme-row { margin-top: 14px; }
+
+/* Pannello Account: selettore che scivola tra le voci */
+.acct-tabs.three { position: relative; }
+.acct-tabs.three::before {
+  content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px;
+  width: calc((100% - 6px) / 3); border-radius: 9px;
+  background: var(--glass-strong); box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform .35s cubic-bezier(.32, .72, 0, 1);
+}
+.acct-tabs.three button { position: relative; z-index: 1; }
+.acct-tabs.three button.on { background: transparent; box-shadow: none; }
+
+/* Contenuto della voce: entra con dissolvenza da destra o da sinistra */
+.acct-pane.slide { animation: pane-in .34s cubic-bezier(.32, .72, 0, 1); }
+@keyframes pane-in {
+  from { opacity: 0; transform: translateX(calc(var(--dir) * 28px)); }
+  to { opacity: 1; transform: none; }
+}
+.sheet { overflow-x: hidden; }
+.acct-pane { display: flex; flex-direction: column; }
+
+/* Pop-up a tutto schermo (pannello Account) */
+.sheet.full { top: calc(var(--safe-top) + 12px); max-height: none; }
+/* Con un pop-up aperto il + non si intravede in trasparenza */
+html.sheet-open .fab, html.sheet-open .tabbar { opacity: 0; pointer-events: none; transition: opacity .2s; }

@@ -3,7 +3,7 @@
 // =============================================================
 import * as cloud from './cloud.js';
 import { PUBLIC_URL } from './config.js';
-import { esc, icon, toast, openSheet, confirmSheet } from './ui.js';
+import { esc, icon, toast, openSheet, confirmSheet, themeRow, bindThemeRow } from './ui.js';
 
 const ROLE_LABEL = { owner: 'Titolare', editor: 'Può modificare', viewer: 'Solo lettura' };
 const BOOK_ROLE = { owner: 'Tuo', editor: 'Condiviso · può modificare', viewer: 'Condiviso · solo lettura' };
@@ -166,7 +166,10 @@ export function accountSheet({ onSwitched, onBackup }) {
       const $acct = sheet.querySelector('#acct');
       let people = { members: [], invites: [] };
       let inviteRole = 'viewer';
-      let tab = 'book'; // scheda del menu: 'book' (ricettario e persone) | 'password'
+      const TAB_ORDER = ['settings', 'book', 'password'];
+      let prevTab = 'settings'; // per far scivolare il selettore dalla voce precedente
+      let slideDir = 0; // 1 = il contenuto entra da destra, -1 da sinistra, 0 = nessuna animazione
+      let tab = 'settings'; // scheda del menu: 'settings' (tema, backup, esci) | 'book' (ricettario e persone) | 'password'
 
       const syncLine = () => {
         const n = cloud.pendingCount();
@@ -196,7 +199,21 @@ export function accountSheet({ onSwitched, onBackup }) {
           </div>`;
       };
 
+      const sheetEl = $acct.closest('.sheet');
+
+      // Il pannello Account occupa sempre tutto lo schermo (altezza fissa, qualunque voce sia aperta)
+      sheetEl.classList.add('full');
+
+      /** Ridisegna il pannello; il selettore scivola dalla voce precedente a quella attuale */
       const draw = () => {
+        render();
+        const $tabs = $acct.querySelector('.acct-tabs');
+        requestAnimationFrame(() => $tabs?.style.setProperty('--i', TAB_ORDER.indexOf(tab)));
+        prevTab = tab;
+        slideDir = 0;
+      };
+
+      const render = () => {
         const b = cloud.book;
         $acct.innerHTML = `
           <div class="acct-me">
@@ -207,12 +224,22 @@ export function accountSheet({ onSwitched, onBackup }) {
             </div>
           </div>
 
-          <div class="segmented acct-tabs" role="tablist">
+          <div class="segmented acct-tabs three" role="tablist" style="--i:${TAB_ORDER.indexOf(prevTab)}">
+            <button type="button" data-tab="settings" class="${tab === 'settings' ? 'on' : ''}">Impostazioni</button>
             <button type="button" data-tab="book" class="${tab === 'book' ? 'on' : ''}">Invito</button>
             <button type="button" data-tab="password" class="${tab === 'password' ? 'on' : ''}">Password</button>
           </div>
 
-          ${tab === 'book' ? `
+          <div class="acct-pane ${slideDir ? 'slide' : ''}" style="--dir:${slideDir}">
+          ${tab === 'settings' ? `
+          <div class="acct-settings">
+            ${themeRow()}
+            <div class="action-list acct-actions">
+              <button type="button" class="action" id="backup">Backup</button>
+              <button type="button" class="action danger" id="logout">Esci dall’account</button>
+            </div>
+          </div>
+          ` : tab === 'book' ? `
           <h4 class="acct-h">Ricettario</h4>
           <div class="action-list books">
             ${cloud.books.map((x) => `
@@ -251,15 +278,19 @@ export function accountSheet({ onSwitched, onBackup }) {
             <p class="auth-msg" id="pw-msg" hidden></p>
             <button class="btn primary full" type="submit">Salva la nuova password</button>
           </form>`}
-
-          <div class="action-list acct-actions">
-            <button type="button" class="action" id="backup">Backup</button>
-            <button type="button" class="action danger" id="logout">Esci dall’account</button>
           </div>`;
+
+        bindThemeRow($acct);
 
         // Menu: Ricettario / Password
         $acct.querySelectorAll('[data-tab]').forEach((t) =>
-          t.addEventListener('click', () => { tab = t.dataset.tab; draw(); })
+          t.addEventListener('click', () => {
+            const next = t.dataset.tab;
+            if (next === tab) return;
+            slideDir = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 1 : -1;
+            tab = next;
+            draw();
+          })
         );
 
         // Cambio password
@@ -383,8 +414,9 @@ export function accountSheet({ onSwitched, onBackup }) {
           try { await cloud.leaveBook(); onSwitched(); toast('Hai lasciato il ricettario'); } catch (e) { toast(errorText(e)); }
         });
 
-        $acct.querySelector('#backup').onclick = () => { close(); setTimeout(onBackup, 260); };
-        $acct.querySelector('#logout').onclick = async () => {
+        $acct.querySelector('#backup')?.addEventListener('click', () => { close(); setTimeout(onBackup, 260); });
+        const $logout = $acct.querySelector('#logout');
+        if ($logout) $logout.onclick = async () => {
           const n = cloud.pendingCount();
           const msg = n
             ? `Ci sono ${n} modifiche non ancora salvate online (sei offline?). Uscendo andranno perse. Uscire comunque?`
