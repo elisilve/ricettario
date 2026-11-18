@@ -92,7 +92,7 @@ svg { flex-shrink: 0; }
 .navbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 20;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  height: calc(52px + var(--safe-top));
+  height: calc(62px + var(--safe-top));
   padding: var(--safe-top) 8px 0;
   transition: background .25s, border-color .25s;
   border-bottom: 1px solid transparent;
@@ -132,7 +132,7 @@ svg { flex-shrink: 0; }
 
 /* ---------- Pagine ---------- */
 .view {
-  padding: calc(52px + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
+  padding: calc(62px + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
   max-width: 680px; margin: 0 auto;
 }
 .view.enter { animation: enter .32s cubic-bezier(.2, .8, .2, 1); }
