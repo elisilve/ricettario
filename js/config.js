@@ -10,3 +10,7 @@
 
 export const SUPABASE_URL = 'https://lmwzzwtvzimqjmzjakso.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_OZoth4PR3iAoryC1WwBM9Q_nRTrxB1B';
+
+// Indirizzo pubblico dell'app: i link nelle email (conferma account, nuova password)
+// portano sempre qui, anche se ti registri mentre provi l'app in locale con Live Server
+export const PUBLIC_URL = 'https://ricettario-dusky.vercel.app/';

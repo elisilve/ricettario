@@ -8,7 +8,7 @@
 //    resta in coda e parte appena torna online
 //  - tempo reale: le modifiche fatte da altri compaiono subito
 
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, PUBLIC_URL } from './config.js';
 import * as store from './store.js';
 import { getImage, putImage, deleteImage, onImageChange, hasImage } from './images.js';
 
@@ -25,7 +25,9 @@ export let book = null; // ricettario aperto
 const KIND_OF = { categories: 'category', recipes: 'recipe', pantry: 'food' };
 const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry' };
 
-const appUrl = () => location.origin + location.pathname;
+// In locale (Live Server) i link delle email devono comunque portare all'app pubblicata
+const appUrl = () =>
+  ['localhost', '127.0.0.1'].includes(location.hostname) && PUBLIC_URL ? PUBLIC_URL : location.origin + location.pathname;
 const lsGet = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* spazio pieno */ } };
 
