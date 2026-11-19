@@ -434,7 +434,7 @@ function categorySheet(cat = null) {
     `<h3 class="sheet-title">${cat ? 'Modifica categoria' : 'Nuova categoria'}</h3>
      <form id="cat-form" class="form">
        <div id="cat-icon"></div>
-       <input class="input" name="name" placeholder="Nome categoria" value="${esc(cat?.name || '')}" required>
+       <input class="input" name="name" autocapitalize="sentences" placeholder="Nome categoria" value="${esc(cat?.name || '')}" required>
        <button class="btn primary full" type="submit">${cat ? 'Salva' : 'Crea categoria'}</button>
      </form>`,
     (sheet, close) => {
@@ -629,7 +629,7 @@ const ingredientRow = (i = {}) => `
     <div class="ing-fields">
       <input class="input qty" name="qty" inputmode="decimal" placeholder="100" value="${i.qty ?? ''}">
       <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(i.name ? (i.unit === 'g' ? 'gr' : i.unit || '') : 'gr', i.food?.basis === 'pz' ? ['pz'] : [])}</select>
-      <input class="input" name="ing" placeholder="Ingrediente" value="${esc(i.name || '')}" autocomplete="off">
+      <input class="input" name="ing" autocapitalize="sentences" placeholder="Ingrediente" value="${esc(i.name || '')}" autocomplete="off">
       <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
     </div>
     <div class="suggest" hidden></div>
@@ -667,7 +667,7 @@ function renderEditor(id, presetCategory) {
       <form id="recipe-form" class="form" novalidate>
         <div class="card glass">
           <div id="recipe-icon"></div>
-          <input class="input" name="name" placeholder="Nome della ricetta" value="${esc(r.name)}" required>
+          <input class="input" name="name" autocapitalize="sentences" placeholder="Nome della ricetta" value="${esc(r.name)}" required>
           <label class="field">
             <span>Categoria</span>
             <select class="input" name="category">
@@ -1011,7 +1011,7 @@ function foodSheet(food = null, opts = {}) {
     `<h3 class="sheet-title">${food ? 'Modifica alimento' : 'Nuovo alimento'}</h3>
      <form id="food-form" class="form">
        <div id="food-icon"></div>
-       <input class="input" name="name" placeholder="Nome (es. Zucca)" value="${esc(food?.name || opts.name || '')}" required>
+       <input class="input" name="name" autocapitalize="sentences" placeholder="Nome (es. Zucca)" value="${esc(food?.name || opts.name || '')}" required>
        <div class="field">
          <span>I valori si riferiscono a</span>
          <div class="segmented" id="basis">
@@ -1578,7 +1578,7 @@ const itemRow = (it = {}) => `
     <div class="ing-fields">
       <input class="input qty" name="qty" inputmode="decimal" placeholder="1" value="${it.qty ?? ''}">
       <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(it.name ? (it.unit || '') : 'gr', it.recipeId || it.mealId ? ['porz.'] : [])}</select>
-      <input class="input" name="ing" placeholder="${it.placeholder || 'Alimento o ricetta'}" value="${esc(it.name || '')}" autocomplete="off">
+      <input class="input" name="ing" autocapitalize="sentences" placeholder="${it.placeholder || 'Alimento o ricetta'}" value="${esc(it.name || '')}" autocomplete="off">
       <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
     </div>
     <div class="suggest" hidden></div>
@@ -1809,7 +1809,7 @@ function renderMealEditor(id, presetMoment) {
       <form id="meal-form" class="form" novalidate>
         <div class="card glass">
           <div id="meal-icon"></div>
-          <input class="input" name="name" placeholder="Nome del pasto (es. La mia colazione)" value="${esc(m.name)}" required>
+          <input class="input" name="name" autocapitalize="sentences" placeholder="Nome del pasto (es. La mia colazione)" value="${esc(m.name)}" required>
           <div class="field">
             <span>Momento della giornata</span>
             <div class="segmented moments">

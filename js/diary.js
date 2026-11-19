@@ -17,6 +17,7 @@
 //  e viene inviato al server; offline resta in coda e parte appena torna la rete.
 
 import * as cloud from './cloud.js';
+import { capitalize } from './ui.js';
 
 // ---------- Momenti della giornata ----------
 // meal = momento dei Pasti salvati da proporre come aggiunta rapida
@@ -69,13 +70,15 @@ export const onChange = (fn) => listeners.add(fn);
 const emit = () => listeners.forEach((fn) => fn());
 
 // ---------- Lettura ----------
-export const itemsOf = (key, slot) => days[key]?.[slot] || [];
+export const itemsOf = (key, slot) =>
+  (days[key]?.[slot] || []).map((it) => (it.name ? { ...it, name: capitalize(it.name) } : it));
 export const hasEntries = (key) => SLOTS.some((s) => itemsOf(key, s.id).length > 0);
 /** Tutti gli elementi del giorno, in un'unica lista (per il totale) */
 export const allItems = (key) => SLOTS.flatMap((s) => itemsOf(key, s.id));
 
 // ---------- Scrittura ----------
 export function saveSlot(key, slot, items) {
+  items = items.map((it) => ({ ...it, name: capitalize(it.name) }));
   const day = { ...days[key], [slot]: items };
   if (!items.length) delete day[slot];
   if (Object.keys(day).length) days[key] = day;

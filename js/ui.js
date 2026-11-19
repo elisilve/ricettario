@@ -2,6 +2,12 @@
 //  ui.js — piccoli strumenti condivisi: icone, modali, toast
 // =============================================================
 
+/** Iniziale maiuscola: "zucca al forno" → "Zucca al forno" (il resto resta com'è) */
+export const capitalize = (text) => {
+  const t = String(text ?? '').trim();
+  return t ? t.charAt(0).toLocaleUpperCase('it-IT') + t.slice(1) : t;
+};
+
 export const esc = (s = '') =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

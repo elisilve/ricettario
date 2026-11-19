@@ -36,6 +36,7 @@
 //    kcal    -> null = calcolate in automatico dai macro
 //  }
 
+import { capitalize } from './ui.js';
 import { allImages, replaceAll as replaceImages } from './images.js';
 
 // Dove sono salvati i dati sul dispositivo:
@@ -105,6 +106,8 @@ function read(key) {
     }
   } catch (e) {
     console.warn('Impossibile leggere i dati salvati', e);
+    // per sicurezza tengo una copia di quello che c'era, prima che venga sostituito
+    try { localStorage.setItem(`${key}:copia-${Date.now()}`, localStorage.getItem(key)); } catch { /* spazio pieno */ }
   }
   return null;
 }
@@ -117,12 +120,22 @@ function load(key, withSeed) {
   return fresh;
 }
 
+/** Nomi con l'iniziale maiuscola in una lista di ingredienti/elementi */
+function capItems(list = []) {
+  return list.map((it) => (it && it.name ? { ...it, name: capitalize(it.name) } : it));
+}
+
 // Aggiunge i campi nuovi ai dati salvati con le versioni precedenti
 function normalize(d) {
   if (!Array.isArray(d.pantry)) d.pantry = [];
   if (!Array.isArray(d.meals)) d.meals = [];
   // L'unità dei grammi si scrive "gr"
   d.recipes.forEach((r) => (r.ingredients || []).forEach((i) => { if (i.unit === 'g') i.unit = 'gr'; }));
+  // Nomi sempre con l'iniziale maiuscola (anche quelli salvati prima di questa regola)
+  d.categories.forEach((c) => { c.name = capitalize(c.name); });
+  d.recipes.forEach((r) => { r.name = capitalize(r.name); r.ingredients = capItems(r.ingredients); });
+  d.pantry.forEach((f) => { f.name = capitalize(f.name); });
+  d.meals.forEach((m) => { m.name = capitalize(m.name); m.items = capItems(m.items); });
   // Ordine delle categorie
   d.categories.forEach((c, i) => { if (c.order == null) c.order = i; });
   d.categories.sort((a, b) => a.order - b.order);
@@ -187,6 +200,7 @@ export const getCategories = () => data.categories;
 export const getCategory = (id) => data.categories.find((c) => c.id === id);
 
 export function saveCategory({ id, name, emoji, photo = null }) {
+  name = capitalize(name);
   if (id) {
     const c = getCategory(id);
     Object.assign(c, { name, emoji, photo });
@@ -215,6 +229,7 @@ export const recipesIn = (categoryId) =>
     .sort((a, b) => a.name.localeCompare(b.name, 'it'));
 
 export function saveRecipe(recipe) {
+  recipe = { ...recipe, name: capitalize(recipe.name), ingredients: capItems(recipe.ingredients) };
   const now = Date.now();
   if (recipe.id && getRecipe(recipe.id)) {
     const i = data.recipes.findIndex((r) => r.id === recipe.id);
@@ -243,6 +258,7 @@ export const findFoodByName = (name) => {
 };
 
 export function saveFood(food) {
+  food = { ...food, name: capitalize(food.name) };
   if (food.id && getFood(food.id)) {
     Object.assign(getFood(food.id), food);
   } else {
@@ -267,6 +283,7 @@ export const getMeals = () => [...data.meals].sort((a, b) => a.name.localeCompar
 export const getMeal = (id) => data.meals.find((m) => m.id === id);
 
 export function saveMeal(meal) {
+  meal = { ...meal, name: capitalize(meal.name), items: capItems(meal.items) };
   const now = Date.now();
   if (meal.id && getMeal(meal.id)) {
     const i = data.meals.findIndex((m) => m.id === meal.id);
