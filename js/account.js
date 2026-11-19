@@ -4,6 +4,7 @@
 import * as cloud from './cloud.js';
 import { PUBLIC_URL } from './config.js';
 import { esc, icon, toast, openSheet, confirmSheet, themeRow, bindThemeRow } from './ui.js';
+import { fileToDataUrl } from './images.js';
 
 const ROLE_LABEL = { owner: 'Titolare', editor: 'Può modificare', viewer: 'Solo lettura' };
 const BOOK_ROLE = { owner: 'Tuo', editor: 'Condiviso · può modificare', viewer: 'Condiviso · solo lettura' };
@@ -169,6 +170,7 @@ export function accountSheet({ onSwitched, onBackup }) {
       const TAB_ORDER = ['settings', 'book', 'password'];
       let prevTab = 'settings'; // per far scivolare il selettore dalla voce precedente
       let slideDir = 0; // 1 = il contenuto entra da destra, -1 da sinistra, 0 = nessuna animazione
+      let editingName = false; // la voce "Nome" è aperta in modifica
       let tab = 'settings'; // scheda del menu: 'settings' (tema, backup, esci) | 'book' (ricettario e persone) | 'password'
 
       const syncLine = () => {
@@ -213,13 +215,31 @@ export function accountSheet({ onSwitched, onBackup }) {
         slideDir = 0;
       };
 
+      /** Nuova foto profilo (o null per toglierla): si vede subito, poi va sul server */
+      const saveAvatar = async (dataUrl) => {
+        const done = cloud.setAvatar(dataUrl);
+        draw();
+        try {
+          await done;
+          toast(dataUrl ? 'Foto profilo aggiornata' : 'Foto profilo rimossa');
+        } catch (e) {
+          toast(errorText(e));
+        }
+      };
+
       const render = () => {
         const b = cloud.book;
         $acct.innerHTML = `
           <div class="acct-me">
-            <span class="person-avatar big">${esc(cloud.user.email.charAt(0).toUpperCase())}</span>
+            <span class="person-avatar big me-photo">
+              ${cloud.myAvatar()
+                ? `<img src="${esc(cloud.myAvatar())}" alt="">`
+                : esc((cloud.myName() || cloud.user.email).charAt(0).toUpperCase())}
+            </span>
+            <input type="file" accept="image/*" id="me-photo-file" hidden>
             <div>
-              <div class="acct-email">${esc(cloud.user.email)}</div>
+              ${cloud.myName() ? `<div class="acct-name">${esc(cloud.myName())}</div>` : ''}
+              <div class="acct-email ${cloud.myName() ? 'small' : ''}">${esc(cloud.user.email)}</div>
               ${syncLine()}
             </div>
           </div>
@@ -233,7 +253,35 @@ export function accountSheet({ onSwitched, onBackup }) {
           <div class="acct-pane ${slideDir ? 'slide' : ''}" style="--dir:${slideDir}">
           ${tab === 'settings' ? `
           <div class="acct-settings">
+            <h4 class="acct-h">Aspetto</h4>
             ${themeRow()}
+
+            <h4 class="acct-h">Informazioni personali</h4>
+            <!-- Nome e cognome: compaiono in alto al posto dell'email -->
+            ${editingName ? `
+            <form class="theme-row name-row editing" id="name-form">
+              <input class="input" name="fullname" placeholder="Nome e cognome" value="${esc(cloud.myName())}" autocomplete="name" maxlength="60">
+              <span class="photo-actions">
+                <button type="button" class="photo-btn neutral" id="name-cancel">Annulla</button>
+                <button type="submit" class="photo-btn">Salva</button>
+              </span>
+            </form>` : `
+            <div class="theme-row name-row">
+              <span class="theme-label">${icon.user} Nome</span>
+              <span class="photo-actions">
+                <button type="button" class="photo-btn" id="name-edit">${cloud.myName() ? 'Modifica' : 'Aggiungi'}</button>
+              </span>
+            </div>`}
+            <!-- Foto profilo: quella che compare nel cerchio in alto -->
+            <div class="theme-row photo-row">
+              <span class="theme-label">${icon.camera} Foto profilo</span>
+              <span class="photo-actions">
+                ${cloud.myAvatar() ? '<button type="button" class="photo-btn danger" id="me-photo-remove">Rimuovi</button>' : ''}
+                <button type="button" class="photo-btn" id="me-photo-pick">${cloud.myAvatar() ? 'Cambia' : 'Scegli'}</button>
+              </span>
+            </div>
+
+            <h4 class="acct-h">Dati e account</h4>
             <div class="action-list acct-actions">
               <button type="button" class="action" id="backup">Backup</button>
               <button type="button" class="action danger" id="logout">Esci dall’account</button>
@@ -281,6 +329,42 @@ export function accountSheet({ onSwitched, onBackup }) {
           </div>`;
 
         bindThemeRow($acct);
+
+        // Nome e cognome
+        const $nameEdit = $acct.querySelector('#name-edit');
+        if ($nameEdit) $nameEdit.onclick = () => {
+          editingName = true;
+          draw();
+          $acct.querySelector('#name-form [name=fullname]').focus();
+        };
+        const $nameForm = $acct.querySelector('#name-form');
+        if ($nameForm) {
+          $acct.querySelector('#name-cancel').onclick = () => { editingName = false; draw(); };
+          $nameForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = $nameForm.fullname.value;
+            try {
+              await cloud.setName(name);
+              editingName = false;
+              draw();
+              toast(name.trim() ? 'Nome salvato' : 'Nome rimosso');
+            } catch (err) {
+              toast(errorText(err));
+            }
+          };
+        }
+
+        // Foto profilo
+        const $file = $acct.querySelector('#me-photo-file');
+        const $pick = $acct.querySelector('#me-photo-pick');
+        if ($pick) $pick.onclick = () => $file.click();
+        const $remove = $acct.querySelector('#me-photo-remove');
+        if ($remove) $remove.onclick = () => saveAvatar(null);
+        $file.onchange = async () => {
+          const f = $file.files[0];
+          if (!f) return;
+          try { await saveAvatar(await fileToDataUrl(f, 400, 0.85)); } catch { toast('Immagine non valida'); }
+        };
 
         // Menu: Ricettario / Password
         $acct.querySelectorAll('[data-tab]').forEach((t) =>

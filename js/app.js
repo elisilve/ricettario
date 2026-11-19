@@ -1817,6 +1817,7 @@ async function startCloud() {
       const { joined } = await cloud.loadBooks();
       await cloud.openBook(cloud.pickBook(joined));
       diary.connect(cloud.user); // il diario è personale: si sincronizza a parte
+      cloud.loadAvatar(); // foto profilo
       if (joined) toast(`Ti hanno condiviso il ricettario “${cloud.book.name}”`);
       return;
     } catch (e) {

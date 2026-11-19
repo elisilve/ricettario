@@ -13,6 +13,7 @@
 --   • items    = categorie, ricette, alimenti della dispensa e pasti (salvati come JSON,
 --                con la stessa forma che usa l'app)
 --   • foto     = nello Storage, bucket "photos", cartella = id del ricettario
+--   • avatars  = foto profilo, nello Storage: un file <id utente>.jpg che vede solo il proprietario
 --   • diary    = il diario alimentare: PERSONALE (una riga per utente e per giorno),
 --                non fa parte del ricettario e non lo vede nessun altro
 --
@@ -217,6 +218,18 @@ create policy photos_update on storage.objects for update to authenticated
   using (bucket_id = 'photos' and public.can_edit(public.try_uuid((storage.foldername(name))[1])));
 create policy photos_delete on storage.objects for delete to authenticated
   using (bucket_id = 'photos' and public.can_edit(public.try_uuid((storage.foldername(name))[1])));
+
+
+-- ---------- Foto profilo (Storage) ----------
+-- Percorso: <id utente>.jpg — ognuno legge e modifica solo la propria
+
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', false)
+on conflict (id) do nothing;
+
+drop policy if exists avatars_own on storage.objects;
+create policy avatars_own on storage.objects for all to authenticated
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '.jpg')
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '.jpg');
 
 
 -- ---------- Aggiornamenti in tempo reale ----------

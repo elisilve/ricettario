@@ -98,7 +98,7 @@ export async function signOut() {
   stopRealtime();
   // via le copie locali dei ricettari e del diario (restano sul server)
   Object.keys(localStorage)
-    .filter((k) => ['ricettario:book:', 'ricettario:queue:', 'ricettario:books:', 'ricettario:diary:', 'ricettario:diary-queue:']
+    .filter((k) => ['ricettario:book:', 'ricettario:queue:', 'ricettario:books:', 'ricettario:diary:', 'ricettario:diary-queue:', 'ricettario:avatar:']
       .some((prefix) => k.startsWith(prefix)))
     .forEach((k) => localStorage.removeItem(k));
   try { await sb.auth.signOut(); } catch { /* offline: la sessione locale viene comunque rimossa */ }
@@ -338,6 +338,69 @@ store.onChange((change) => {
 onImageChange(({ id, op }) => enqueue({ type: 'photo', id, op }));
 
 // =============================================================
+//  Nome e cognome (salvati nel profilo dell'account)
+// =============================================================
+export const myName = () => (user?.user_metadata?.full_name || '').trim();
+
+export async function setName(name) {
+  const data = check(await sb.auth.updateUser({ data: { full_name: name.trim() } }));
+  if (data?.user) user = data.user;
+}
+
+// =============================================================
+//  Foto profilo (personale)
+// -------------------------------------------------------------
+//  Sul server: bucket "avatars", file <id utente>.jpg (la vede solo chi l'ha caricata).
+//  Sul dispositivo: una copia in localStorage, così compare subito e anche offline.
+// =============================================================
+const avatarKey = () => `ricettario:avatar:${user.id}`;
+const avatarPath = () => `${user.id}.jpg`;
+
+/** La foto profilo (data URL) oppure null */
+export const myAvatar = () => lsGet(avatarKey(), {}).url || null;
+
+/** Salva (o con null rimuove) la foto profilo, qui e sul server */
+export async function setAvatar(dataUrl) {
+  lsSet(avatarKey(), { url: dataUrl, pending: true });
+  await syncAvatar();
+}
+
+/** Invia la foto rimasta in sospeso (es. scelta offline) */
+async function syncAvatar() {
+  const saved = lsGet(avatarKey(), {});
+  if (!saved.pending || !sb || !user) return;
+  try {
+    if (saved.url) {
+      const blob = await (await fetch(saved.url)).blob();
+      check(await sb.storage.from('avatars').upload(avatarPath(), blob, { upsert: true, contentType: 'image/jpeg' }));
+    } else {
+      check(await sb.storage.from('avatars').remove([avatarPath()]));
+    }
+    lsSet(avatarKey(), { url: saved.url });
+  } catch (e) {
+    if (!isNetworkError(e)) throw e; // offline: resta in sospeso e riparte più tardi
+  }
+}
+
+/** All'avvio: invia la foto in sospeso oppure scarica quella salvata sul server */
+export async function loadAvatar() {
+  if (!sb || !user) return;
+  const saved = lsGet(avatarKey(), null);
+  if (saved?.pending) return syncAvatar().catch(() => {});
+  if (saved) return; // già scaricata
+  try {
+    const { data, error } = await sb.storage.from('avatars').download(avatarPath());
+    const url = error ? null : await new Promise((res) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.readAsDataURL(data);
+    });
+    if (error && isNetworkError(error)) return;
+    lsSet(avatarKey(), { url });
+  } catch { /* offline: riproverà al prossimo avvio */ }
+}
+
+// =============================================================
 //  Foto mancanti (aggiunte da un altro dispositivo o da un'altra persona)
 // =============================================================
 let fetchingPhotos = false;
@@ -410,7 +473,7 @@ function stopRealtime() {
 }
 
 // Torna la connessione / riapri l'app: invia le modifiche in coda e aggiorna
-window.addEventListener('online', () => { if (book) flush().then(() => pull()).then(() => listeners.remote()).catch(() => {}); });
+window.addEventListener('online', () => { syncAvatar().catch(() => {}); if (book) flush().then(() => pull()).then(() => listeners.remote()).catch(() => {}); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !book || !navigator.onLine) return;
   flush().then(() => pull()).then(() => listeners.remote()).catch(() => {});
