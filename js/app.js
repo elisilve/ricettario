@@ -102,8 +102,9 @@ function setNav({ title = '', back = null, right = '' }) {
     ? `<a class="nav-btn back" href="${back.href}">${icon.back}<span>${esc(back.label)}</span></a>`
     : '';
   // In ogni schermata: i pulsanti della pagina, poi l'account (dove c'è anche il tema)
+  // Il pulsante dell'account c'è solo nelle pagine principali (Ricette, Dispensa, Pasti)
   $navRight.innerHTML = right +
-    `<button class="nav-btn icon" id="user-btn" aria-label="Account">${icon.user}</button>`;
+    (topTab(location.hash || '#/') ? `<button class="nav-btn icon" id="user-btn" aria-label="Account">${icon.user}</button>` : '');
 }
 
 $navRight.addEventListener('click', (e) => {
