@@ -3,15 +3,17 @@
 // =============================================================
 //  Menu in basso (Ricette · Dispensa · Pasti) e pulsante +
 // -------------------------------------------------------------
-//  Il menu è allineato a sinistra e il + sta a destra, come
-//  nelle app iOS. La "pillola" colorata scivola sotto la voce
-//  attiva: app.js imposta --i (0, 1, 2) sulla barra.
+//  Il menu è centrato; il + galleggia sopra di lui, a destra
+//  (sulle pagine senza menu scende al suo posto).
+//  La "pillola" colorata scivola sotto la voce attiva:
+//  app.js imposta --i (0, 1, 2) sulla barra.
 // =============================================================
 
 .tabbar {
   position: fixed;
   z-index: 15;
-  left: max(16px, calc(50vw - #{$page-max-width * .5 - 16px}));
+  left: 50%;
+  transform: translateX(-50%); // centrato
   bottom: calc(#{$tabbar-bottom} + var(--safe-bottom));
   display: flex;
   gap: $tab-gap;
@@ -73,9 +75,9 @@ body.no-tabbar .tabbar {
 .fab {
   position: fixed;
   z-index: 15;
-  right: max(20px, calc(50vw - #{$page-max-width * .5 - 20px}));
-  // centrato in altezza rispetto al menu
-  bottom: calc(#{$tabbar-bottom + ($tabbar-height - $fab-size) * .5} + var(--safe-bottom));
+  right: max(16px, calc(50vw - #{$page-max-width * .5 - 16px}));
+  // sopra il menu, allineato al bordo destro dei contenuti
+  bottom: calc(#{$tabbar-bottom + $tabbar-height + $fab-gap} + var(--safe-bottom));
   width: $fab-size;
   height: $fab-size;
   border-radius: 50%;
@@ -101,5 +103,10 @@ body.no-tabbar .tabbar {
 
   &:active {
     transform: scale(.92);
+  }
+
+  // Pagine senza menu (es. una categoria): il + scende in basso
+  body.no-tabbar & {
+    bottom: calc(#{$tabbar-bottom + ($tabbar-height - $fab-size) * .5} + var(--safe-bottom));
   }
 }

@@ -272,7 +272,7 @@ html.sheet-open .fab, html.sheet-open .tabbar {
 }
 
 .view {
-  padding: calc(62px + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
+  padding: calc(62px + var(--safe-top)) 16px calc(150px + var(--safe-bottom));
   max-width: 680px;
   margin: 0 auto;
 }
@@ -323,7 +323,8 @@ html.sheet-open .fab, html.sheet-open .tabbar {
 .tabbar {
   position: fixed;
   z-index: 15;
-  left: max(16px, calc(50vw - 324px));
+  left: 50%;
+  transform: translateX(-50%);
   bottom: calc(24px + var(--safe-bottom));
   display: flex;
   gap: 4px;
@@ -385,8 +386,8 @@ body.no-tabbar .tabbar {
 .fab {
   position: fixed;
   z-index: 15;
-  right: max(20px, calc(50vw - 320px));
-  bottom: calc(34px + var(--safe-bottom));
+  right: max(16px, calc(50vw - 324px));
+  bottom: calc(98px + var(--safe-bottom));
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -413,6 +414,10 @@ body.no-tabbar .tabbar {
 
 .fab:active {
   transform: scale(.92);
+}
+
+body.no-tabbar .fab {
+  bottom: calc(34px + var(--safe-bottom));
 }
 
 .btn {

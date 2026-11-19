@@ -5,8 +5,8 @@
 // =============================================================
 
 .view {
-  // spazio sopra per la barra in alto, sotto per il menu
-  padding: calc(#{$navbar-height} + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
+  // spazio sopra per la barra in alto, sotto per il menu e il pulsante +
+  padding: calc(#{$navbar-height} + var(--safe-top)) 16px calc(150px + var(--safe-bottom));
   max-width: $page-max-width;
   margin: 0 auto;
 
