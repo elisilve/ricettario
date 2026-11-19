@@ -23,8 +23,22 @@
 }
 
 .week-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 99px;
   font-weight: 600;
   font-size: 15px;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    color: var(--accent);
+    stroke-width: 2.6;
+  }
+
+  &:active { background: var(--input-bg); }
 }
 
 // Frecce per la settimana prima / dopo
@@ -43,9 +57,24 @@
   &:active { background: var(--input-bg); }
 }
 
-.week-days {
+// Tre settimane affiancate: si scorre col dito e si "aggancia" a una settimana intera
+.week-scroller {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.week-page {
+  flex: 0 0 100%;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  scroll-snap-align: start;
+  scroll-snap-stop: always; // una settimana alla volta
 }
 
 // Un giorno: lettera, numero, pallino
@@ -86,7 +115,7 @@
   font-size: 17px;
   font-weight: 600;
   @include tabular;
-  transition: transform .15s, background .2s, color .2s;
+  transition: transform .15s, background-color .25s ease, color .25s ease, box-shadow .25s ease;
 }
 
 // Pallino vuoto = niente segnato · pieno = qualcosa segnato
@@ -245,4 +274,99 @@
 // Più aria fra l'ultimo alimento e il pulsante Modifica
 .slot .slot-items + .slot-add {
   margin-top: 22px;
+}
+
+// Il cambio di giorno è animato da app.js (swapDiaryDay)
+}
+
+
+// ---------- Calendario a tutto schermo ----------
+// Il pop-up del calendario: trattino e titolo fermi in alto, scorrono solo i mesi
+.sheet.month-sheet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+  background: var(--bg);
+}
+
+.month-head {
+  flex-shrink: 0;
+  margin: 0 -18px;
+  padding: 14px 18px 0; // più aria sopra il titolo
+  border-bottom: 1px solid var(--hairline);
+
+  // più aria sotto il titolo "Calendario"
+  .sheet-title {
+    margin: 0 0 18px;
+  }
+}
+
+// La parte che scorre
+.months {
+  position: relative; // le posizioni dei mesi si misurano da qui (per aprire sul mese giusto)
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -18px;
+  padding: 0 18px calc(18px + var(--safe-bottom));
+}
+
+.month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding-bottom: 8px;
+
+  span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+}
+
+.month {
+  padding-top: 14px;
+
+  // linea sottile fra un mese e l'altro
+  & + & {
+    margin-top: 10px;
+    border-top: 1px solid var(--hairline);
+    padding-top: 18px;
+  }
+}
+
+.month-title {
+  margin: 0 4px 8px;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+
+  .wd {
+    padding: 0 0 4px;
+    gap: 2px;
+  }
+
+  .wd-num {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+}
+
+.month-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+  color: var(--text-2);
 }

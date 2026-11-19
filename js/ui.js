@@ -40,6 +40,7 @@ export const icon = {
   user: svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.9-3.9 3.9-6 7.5-6s6.6 2.1 7.5 6"/>'),
   calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.3" fill="currentColor" stroke="none"/>'),
   edit: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+  chevronDown: svg('<path d="M6 9l6 6 6-6"/>'),
   chevronLeft: svg('<path d="M15 5l-7 7 7 7"/>'),
   meal: svg('<circle cx="12" cy="13" r="6.5"/><path d="M3 4v5a2 2 0 002 2M5 4v16M21 4c-1.3 1-2 3-2 6h2v10"/>'),
   sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'),
@@ -135,7 +136,9 @@ function enableDragToClose(sheet, backdrop, close) {
   const start = (y, target) => {
     startY = y; dy = 0; dragging = false; samples = [{ y, t: Date.now() }];
     const fromHandle = !!target.closest('.sheet-handle, .sheet-title');
-    eligible = fromHandle || (sheet.scrollTop <= 0 && !target.closest(FIELDS));
+    // il contenuto che scorre può essere il pop-up stesso o una sua parte (.sheet-scroll)
+    const scroller = target.closest('.sheet-scroll') || sheet;
+    eligible = fromHandle || (scroller.scrollTop <= 0 && !target.closest(FIELDS));
   };
 
   const move = (y, e) => {
@@ -188,9 +191,10 @@ function enableDragToClose(sheet, backdrop, close) {
   backdrop.addEventListener('wheel', block, { passive: false });
   // Sul pop-up la rotellina scorre solo il suo contenuto (se ce n'è da scorrere)
   sheet.addEventListener('wheel', (e) => {
-    const canScroll = sheet.scrollHeight > sheet.clientHeight;
-    const atTop = sheet.scrollTop <= 0 && e.deltaY < 0;
-    const atBottom = sheet.scrollTop + sheet.clientHeight >= sheet.scrollHeight - 1 && e.deltaY > 0;
+    const sc = e.target.closest('.sheet-scroll') || sheet;
+    const canScroll = sc.scrollHeight > sc.clientHeight;
+    const atTop = sc.scrollTop <= 0 && e.deltaY < 0;
+    const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1 && e.deltaY > 0;
     if (!canScroll || atTop || atBottom) e.preventDefault();
   }, { passive: false });
 

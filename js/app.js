@@ -1254,93 +1254,256 @@ const diaryItemRow = (it, mm) => `
       : isNegligible(it) ? '' : '<div class="ing-macros"><span class="warn">Non conteggiato nei valori</span></div>'}
   </li>`;
 
+/** Un giorno della striscia settimanale (lettera, numero, pallino) */
+const weekDay = (d, i, selected) => {
+  const cls = [d === selected && 'selected', d === diary.dayKey() && 'today'].filter(Boolean).join(' ');
+  return `
+    <a class="wd ${cls}" href="#/diario/${d}" data-day="${d}" aria-label="${longDate(d)}">
+      <span class="wd-name">${WEEKDAYS[i]}</span>
+      <span class="wd-num">${diary.parseDay(d).getDate()}</span>
+      <span class="wd-dot ${diary.hasEntries(d) ? 'full' : ''}"></span>
+    </a>`;
+};
+
+/** Una settimana intera, da lunedì a domenica */
+const weekPage = (monday, selected) =>
+  `<div class="week-page" data-monday="${monday}">${WEEKDAYS.map((_, i) => weekDay(diary.addDays(monday, i), i, selected)).join('')}</div>`;
+
+/** Contenuto del giorno: titolo, anello del totale, i cinque momenti */
+function diaryDayHtml(key) {
+  const today = diary.dayKey();
+  const label = dayName(key);
+  const dayNut = mealNutrition({ items: diary.allItems(key) });
+  return `
+    <div class="day-head">
+      <h2 class="section-title">${label ? `${label} <small>${longDate(key)}</small>` : longDate(key)}</h2>
+      ${key !== today ? `<a class="today-btn" href="#/diario">Oggi</a>` : ''}
+    </div>
+
+    ${nutritionCard(dayNut, 'Totale del giorno')}
+
+    ${diary.SLOTS.map((slot) => {
+      const items = diary.itemsOf(key, slot.id);
+      const nut = mealNutrition({ items });
+      const quick = store.getMeals().filter((m) => m.moment === slot.meal && !items.some((it) => it.mealId === m.id));
+      return `
+        <div class="card glass slot">
+          <!-- Riepilogo del momento: nome, calorie e macronutrienti -->
+          <a class="slot-head ${items.length ? 'filled' : ''}" href="#/diario/${key}/${slot.id}">
+            <span class="slot-emoji">${slot.emoji}</span>
+            <span class="slot-text">
+              <span class="slot-title">${slot.label}</span>
+              ${items.length ? macroChips(nut.total) : ''}
+            </span>
+            ${items.length ? `<span class="slot-kcal"><strong>${Math.round(nut.total.kcal)}</strong> kcal</span>` : ''}
+          </a>
+          ${items.length ? `
+            <a class="slot-items" href="#/diario/${key}/${slot.id}">
+              <ul class="ingredients">${items.map((it, i) => diaryItemRow(it, nut.perItem[i])).join('')}</ul>
+            </a>` : ''}
+          ${quick.length ? `
+            <div class="quick-add">
+              ${quick.slice(0, 4).map((m) => `
+                <button type="button" class="quick-meal" data-slot="${slot.id}" data-meal="${m.id}">
+                  ${icon.plus}<span class="ing-avatar">${avatar(m)}</span>${esc(m.name)}
+                </button>`).join('')}
+            </div>` : ''}
+          <a class="btn ghost small slot-add" href="#/diario/${key}/${slot.id}">${items.length ? `${icon.edit} Modifica` : `${icon.plus} Aggiungi`}</a>
+        </div>`;
+    }).join('')}`;
+}
+
+// Stato della pagina del diario aperta
+const diaryView = { key: null, monday: null };
+
 function renderDiary(key = diary.dayKey()) {
   setTab('diario');
   setNav({ title: 'Diario' });
-  const today = diary.dayKey();
-  const monday = diary.weekStart(key);
-  const dayNut = mealNutrition({ items: diary.allItems(key) });
-  const label = dayName(key);
+  // pagina già aperta (cambio di giorno o dati aggiornati): cambia solo quello che serve
+  if ($view.querySelector('.page.diary')) return updateDiary(key);
 
+  diaryView.key = key;
+  diaryView.monday = diary.weekStart(key);
   $view.innerHTML = `
     <section class="page diary">
       <h1 class="large-title">Diario</h1>
 
-      <!-- Settimana: pallino pieno = giorno con qualcosa segnato -->
+      <!-- Settimana: scorri col dito o usa le frecce; tocca il titolo per il calendario -->
       <div class="week glass">
         <div class="week-head">
-          <a class="week-nav" href="#/diario/${diary.addDays(key, -7)}" aria-label="Settimana precedente">${icon.chevronLeft}</a>
-          <span class="week-title">${weekTitle(monday)}</span>
-          <a class="week-nav" href="#/diario/${diary.addDays(key, 7)}" aria-label="Settimana successiva">${icon.chevron}</a>
+          <button type="button" class="week-nav" data-dir="-1" aria-label="Settimana precedente">${icon.chevronLeft}</button>
+          <button type="button" class="week-title" id="open-month">
+            <span>${weekTitle(diaryView.monday)}</span>${icon.chevronDown}
+          </button>
+          <button type="button" class="week-nav" data-dir="1" aria-label="Settimana successiva">${icon.chevron}</button>
         </div>
-        <div class="week-days">
-          ${WEEKDAYS.map((w, i) => {
-            const d = diary.addDays(monday, i);
-            const cls = [d === key && 'selected', d === today && 'today'].filter(Boolean).join(' ');
-            return `
-              <a class="wd ${cls}" href="#/diario/${d}" aria-label="${longDate(d)}">
-                <span class="wd-name">${w}</span>
-                <span class="wd-num">${diary.parseDay(d).getDate()}</span>
-                <span class="wd-dot ${diary.hasEntries(d) ? 'full' : ''}"></span>
-              </a>`;
-          }).join('')}
-        </div>
+        <div class="week-scroller" id="week-scroller"></div>
       </div>
 
-      <div class="day-head">
-        <h2 class="section-title">${label ? `${label} <small>${longDate(key)}</small>` : longDate(key)}</h2>
-        ${key !== today ? `<a class="today-btn" href="#/diario">Oggi</a>` : ''}
-      </div>
-
-      ${nutritionCard(dayNut, 'Totale del giorno')}
-
-      ${diary.SLOTS.map((slot) => {
-        const items = diary.itemsOf(key, slot.id);
-        const nut = mealNutrition({ items });
-        const quick = store.getMeals().filter((m) => m.moment === slot.meal && !items.some((it) => it.mealId === m.id));
-        return `
-          <div class="card glass slot">
-            <!-- Riepilogo del momento: nome, calorie e macronutrienti -->
-            <a class="slot-head ${items.length ? 'filled' : ''}" href="#/diario/${key}/${slot.id}">
-              <span class="slot-emoji">${slot.emoji}</span>
-              <span class="slot-text">
-                <span class="slot-title">${slot.label}</span>
-                ${items.length ? macroChips(nut.total) : ''}
-              </span>
-              ${items.length ? `<span class="slot-kcal"><strong>${Math.round(nut.total.kcal)}</strong> kcal</span>` : ''}
-            </a>
-            ${items.length ? `
-              <a class="slot-items" href="#/diario/${key}/${slot.id}">
-                <ul class="ingredients">${items.map((it, i) => diaryItemRow(it, nut.perItem[i])).join('')}</ul>
-              </a>` : ''}
-            ${quick.length ? `
-              <div class="quick-add">
-                ${quick.slice(0, 4).map((m) => `
-                  <button type="button" class="quick-meal" data-slot="${slot.id}" data-meal="${m.id}">
-                    ${icon.plus}<span class="ing-avatar">${avatar(m)}</span>${esc(m.name)}
-                  </button>`).join('')}
-              </div>` : ''}
-            <a class="btn ghost small slot-add" href="#/diario/${key}/${slot.id}">${items.length ? `${icon.edit} Modifica` : `${icon.plus} Aggiungi`}</a>
-          </div>`;
-      }).join('')}
+      <div id="diary-day">${diaryDayHtml(key)}</div>
     </section>
     <button class="fab" id="diary-add" aria-label="Aggiungi al diario">${icon.plus}</button>`;
 
-  // Aggiunta rapida di un pasto salvato (es. "La mia colazione")
+  mountWeeks();
+  bindWeekScroller();
+  bindDiaryDay();
+
+  document.getElementById('open-month').onclick = () => monthSheet(diaryView.key);
+  $view.querySelectorAll('.week-nav').forEach((b) => {
+    b.onclick = () => {
+      const $sc = document.getElementById('week-scroller');
+      $sc.scrollBy({ left: Number(b.dataset.dir) * $sc.clientWidth, behavior: 'smooth' });
+    };
+  });
+  // + in basso: scegli il momento della giornata
+  document.getElementById('diary-add').onclick = () =>
+    actionSheet(diary.SLOTS.map((slot) => ({ label: `${slot.emoji} ${slot.label}`, run: () => go(`#/diario/${diaryView.key}/${slot.id}`) })));
+}
+
+/** Tre settimane affiancate (prima, attuale, dopo): si vede quella in mezzo */
+function mountWeeks() {
+  const $sc = document.getElementById('week-scroller');
+  const m = diaryView.monday;
+  $sc.innerHTML = [-7, 0, 7].map((n) => weekPage(diary.addDays(m, n), diaryView.key)).join('');
+  $sc.style.scrollBehavior = 'auto';
+  $sc.scrollLeft = $sc.clientWidth;
+  $sc.style.scrollBehavior = '';
+}
+
+/** Scorrendo la settimana col dito: quando si ferma, passo alla settimana arrivata */
+function bindWeekScroller() {
+  const $sc = document.getElementById('week-scroller');
+  let timer = null;
+  const settle = () => {
+    const page = Math.round($sc.scrollLeft / $sc.clientWidth); // 0 prima, 1 attuale, 2 dopo
+    if (page === 1) return;
+    const shift = (page - 1) * 7;
+    diaryView.monday = diary.addDays(diaryView.monday, shift);
+    mountWeeks(); // torno in mezzo, senza che si veda
+    go(`#/diario/${diary.addDays(diaryView.key, shift)}`, true); // stesso giorno della settimana
+  };
+  $sc.addEventListener('scroll', () => {
+    clearTimeout(timer);
+    timer = setTimeout(settle, 120);
+  }, { passive: true });
+}
+
+/** Cambio di giorno: aggiorno la settimana e faccio entrare il nuovo contenuto di lato */
+function updateDiary(key) {
+  const prev = diaryView.key;
+  diaryView.key = key;
+  const monday = diary.weekStart(key);
+  if (monday !== diaryView.monday) { diaryView.monday = monday; mountWeeks(); }
+  else {
+    $view.querySelectorAll('.wd').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.day === key);
+      el.querySelector('.wd-dot').classList.toggle('full', diary.hasEntries(el.dataset.day));
+    });
+  }
+  $view.querySelector('.week-title span').textContent = weekTitle(diaryView.monday);
+
+  const $day = document.getElementById('diary-day');
+  if (!prev || prev === key || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    $day.innerHTML = diaryDayHtml(key);
+    bindDiaryDay();
+    return;
+  }
+  swapDiaryDay($day, key, key > prev ? 1 : -1);
+}
+
+// Cambio di giorno in dissolvenza. Si animano i CONTENUTI delle card e non le card:
+// su iPhone le card di vetro, se rese trasparenti, perdono la sfocatura e "lampeggiano".
+const DAY_PARTS = '.day-head, .card > *';
+let daySwap = 0;
+async function swapDiaryDay($day, key, dir) {
+  const mine = ++daySwap;
+  // 1) quello che c'è sparisce in fretta, spostandosi appena
+  const out = [...$day.querySelectorAll(DAY_PARTS)].map((el) =>
+    el.animate([{ opacity: 1 }, { opacity: 0, transform: `translateX(${-dir * 10}px)` }],
+      { duration: 110, easing: 'ease-in', fill: 'forwards' }).finished);
+  await Promise.all(out).catch(() => {});
+  if (mine !== daySwap) return; // nel frattempo hai toccato un altro giorno
+  // 2) arriva il nuovo giorno: compare morbido, una card dopo l'altra
+  $day.innerHTML = diaryDayHtml(key);
+  bindDiaryDay();
+  $day.querySelectorAll(DAY_PARTS).forEach((el) => {
+    const card = el.closest('.card');
+    const i = card ? [...$day.children].indexOf(card) : 0;
+    el.animate([
+      { opacity: 0, transform: `translateX(${dir * 14}px)` },
+      { opacity: 1, transform: 'none' },
+    ], { duration: 280, delay: Math.min(i, 4) * 35, easing: 'cubic-bezier(.2, .8, .2, 1)', fill: 'backwards' });
+  });
+}
+
+/** Aggiunta rapida di un pasto salvato (es. "La mia colazione") */
+function bindDiaryDay() {
   $view.querySelectorAll('.quick-meal').forEach((b) => {
     b.onclick = () => {
       const m = store.getMeal(b.dataset.meal);
       if (!m) return;
+      const key = diaryView.key;
       const it = { name: m.name, qty: 1, unit: 'porz.', mealId: m.id };
       diary.saveSlot(key, b.dataset.slot, [...diary.itemsOf(key, b.dataset.slot), { ...it, snap: unitValues(it) }]);
       toast(`${m.name} aggiunto a ${diary.slotInfo(b.dataset.slot).label.toLowerCase()}`);
-      // la pagina si ridisegna da sola (diary.onChange, in fondo al file)
+      // la pagina si aggiorna da sola (diary.onChange, in fondo al file)
     };
   });
+}
 
-  // + in basso: scegli il momento della giornata
-  document.getElementById('diary-add').onclick = () =>
-    actionSheet(diary.SLOTS.map((slot) => ({ label: `${slot.emoji} ${slot.label}`, run: () => go(`#/diario/${key}/${slot.id}`) })));
+/** Calendario a tutto schermo: più mesi, con i giorni segnati */
+function monthSheet(selected) {
+  const today = diary.dayKey();
+  const first = diary.parseDay(today);
+  const months = [];
+  for (let i = -5; i <= 1; i++) months.push(new Date(first.getFullYear(), first.getMonth() + i, 1)); // 5 mesi prima, 1 dopo
+
+  const monthHtml = (d) => {
+    const y = d.getFullYear(), m = d.getMonth();
+    const firstKey = diary.dayKey(d);
+    const lead = (d.getDay() + 6) % 7; // giorni vuoti prima del 1° (la settimana parte da lunedì)
+    const count = new Date(y, m + 1, 0).getDate();
+    const isCurrent = y === first.getFullYear() && m === first.getMonth();
+    const title = d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+    return `
+      <section class="month ${isCurrent ? 'current' : ''}">
+        <h3 class="month-title">${title}</h3>
+        <div class="month-grid">
+          ${'<span></span>'.repeat(lead)}
+          ${Array.from({ length: count }, (_, i) => {
+            const key = diary.addDays(firstKey, i);
+            const cls = [key === selected && 'selected', key === today && 'today'].filter(Boolean).join(' ');
+            return `
+              <button type="button" class="wd ${cls}" data-day="${key}">
+                <span class="wd-num">${i + 1}</span>
+                <span class="wd-dot ${diary.hasEntries(key) ? 'full' : ''}"></span>
+              </button>`;
+          }).join('')}
+        </div>
+      </section>`;
+  };
+
+  openSheet(
+    `<div class="month-head">
+       <h3 class="sheet-title">Calendario</h3>
+       <div class="month-weekdays">${WEEKDAYS.map((w) => `<span>${w}</span>`).join('')}</div>
+     </div>
+     <div class="months sheet-scroll">
+       ${months.map(monthHtml).join('')}
+       <p class="month-legend"><span class="wd-dot full"></span> giorni con pasti segnati</p>
+     </div>`,
+    (sheet, close) => {
+      sheet.classList.add('full', 'month-sheet');
+      // parto dal mese del giorno scelto
+      const target = sheet.querySelector(`[data-day="${selected}"]`)?.closest('.month') || sheet.querySelector('.month.current');
+      // solo i mesi scorrono: trattino e titolo restano fermi in alto
+      const $months = sheet.querySelector('.months');
+      requestAnimationFrame(() => { $months.scrollTop = target.offsetTop - 90; });
+      sheet.querySelectorAll('.month-grid .wd').forEach((b) => {
+        b.onclick = () => { close(); go(`#/diario/${b.dataset.day}`); };
+      });
+    }
+  );
 }
 
 /** Modifica di un momento della giornata (es. la colazione di oggi) */

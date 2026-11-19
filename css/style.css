@@ -1852,8 +1852,24 @@ body.read-only .swipe-action {
 }
 
 .week-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 99px;
   font-weight: 600;
   font-size: 15px;
+}
+
+.week-title svg {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+  stroke-width: 2.6;
+}
+
+.week-title:active {
+  background: var(--input-bg);
 }
 
 .week-nav {
@@ -1874,9 +1890,25 @@ body.read-only .swipe-action {
   background: var(--input-bg);
 }
 
-.week-days {
+.week-scroller {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.week-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.week-page {
+  flex: 0 0 100%;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .wd {
@@ -1916,7 +1948,7 @@ body.read-only .swipe-action {
   font-size: 17px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: transform .15s, background .2s, color .2s;
+  transition: transform .15s, background-color .25s ease, color .25s ease, box-shadow .25s ease;
 }
 
 .wd-dot {
