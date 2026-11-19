@@ -729,3 +729,20 @@ html.sheet-open .fab, html.sheet-open .tabbar { opacity: 0; pointer-events: none
   font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
 }
 .meal-recipe-link { color: var(--accent); }
+
+/* ---------- Scorri a sinistra per eliminare ---------- */
+.swipe { position: relative; touch-action: pan-y; }
+.swipe > .row { position: relative; z-index: 1; -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
+.swipe img { -webkit-user-drag: none; pointer-events: none; }
+.swipe-action {
+  position: absolute; top: 0; bottom: 0; right: 0; width: var(--reveal, 0px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border-radius: 18px; overflow: hidden; background: #ff3b30; color: #fff;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.swipe-action svg { width: 20px; height: 20px; flex-shrink: 0; }
+.swipe-anim .swipe-action { transition: width .32s cubic-bezier(.2, .9, .3, 1); }
+.swipe-action:active { filter: brightness(.9); }
+.swipe-gone { height: 0 !important; opacity: 0; margin-bottom: -10px; overflow: hidden; transition: height .3s ease, opacity .25s ease, margin .3s ease; }
+body.read-only .swipe-action { display: none; }
+:root[data-theme="dark"] .swipe-action { background: #ff453a; }

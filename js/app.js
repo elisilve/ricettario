@@ -3,6 +3,7 @@
 // =============================================================
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
+import { enableSwipe, swipeWrap } from './swipe.js';
 import * as cloud from './cloud.js';
 import { authScreen, accountSheet, errorText } from './account.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet, themeRow, bindThemeRow } from './ui.js';
@@ -64,6 +65,29 @@ function router({ soft = false } = {}) {
     }
   }
   location.replace('#/');
+}
+
+// ---------- Scorri a sinistra per eliminare (ricette, alimenti, pasti) ----------
+async function swipeDelete(kind, id) {
+  if (kind === 'recipe') {
+    const r = store.getRecipe(id);
+    if (!r || !(await confirmSheet(`Eliminare “${r.name}”? L’operazione non si può annullare.`, { okText: 'Elimina', danger: true }))) return false;
+    await deleteImage(r.photo); store.deleteRecipe(id); toast('Ricetta eliminata');
+  } else if (kind === 'food') {
+    const f = store.getFood(id);
+    if (!f) return false;
+    const used = store.recipesUsingFood(id).length;
+    const msg = used
+      ? `“${f.name}” è usato in ${used === 1 ? '1 ricetta' : `${used} ricette`}: lì resteranno i valori di adesso. Eliminarlo dalla dispensa?`
+      : `Eliminare “${f.name}” dalla dispensa?`;
+    if (!(await confirmSheet(msg, { okText: 'Elimina', danger: true }))) return false;
+    await deleteImage(f.photo); store.deleteFood(id); toast('Alimento eliminato');
+  } else if (kind === 'meal') {
+    const m = store.getMeal(id);
+    if (!m || !(await confirmSheet(`Eliminare il pasto “${m.name}”?`, { okText: 'Elimina', danger: true }))) return false;
+    await deleteImage(m.photo); store.deleteMeal(id); toast('Pasto eliminato');
+  } else return false;
+  return true;
 }
 
 /** Si possono modificare i dati? (sempre senza account; con account dipende dal ruolo) */
@@ -140,7 +164,7 @@ const recipeRow = (r) => {
   const t = recipeNutrition(r).total;
   const meta = [r.time && `${r.time} min`, r.servings > 1 && `${r.servings} porzioni`, `${Math.round(t.kcal)} kcal`]
     .filter(Boolean).join(' · ');
-  return `
+  return swipeWrap('recipe', r.id, `
   <a class="row glass" href="#/ricetta/${r.id}">
     <span class="row-emoji">${avatar(r)}</span>
     <span class="row-body">
@@ -149,7 +173,7 @@ const recipeRow = (r) => {
       ${macroChips(t)}
     </span>
     <span class="row-chev">${icon.chevron}</span>
-  </a>`;
+  </a>`);
 };
 
 const countLabel = (n) => (n === 1 ? '1 ricetta' : `${n} ricette`);
@@ -904,7 +928,7 @@ function renderPantry() {
       return;
     }
     $list.innerHTML = foods.length
-      ? `<div class="list">${foods.map((f) => `
+      ? `<div class="list">${foods.map((f) => swipeWrap('food', f.id, `
           <button class="row glass food-row" data-id="${f.id}">
             <span class="row-emoji">${foodAvatar(f)}</span>
             <span class="row-body">
@@ -913,7 +937,7 @@ function renderPantry() {
               ${macroChips(f)}
             </span>
             <span class="row-chev">${icon.chevron}</span>
-          </button>`).join('')}</div>`
+          </button>`)).join('')}</div>`
       : `<p class="empty">Nessun alimento trovato per “${esc(q)}”.</p>`;
   };
 
@@ -1048,7 +1072,7 @@ const MEAL_PICKS = ['🥣', '☕', '🥐', '🍳', '🥞', '🥗', '🍝', '🍱
 const mealRow = (m) => {
   const t = mealNutrition(m).total;
   const n = m.items.length;
-  return `
+  return swipeWrap('meal', m.id, `
   <a class="row glass" href="#/pasto/${m.id}">
     <span class="row-emoji">${avatar(m)}</span>
     <span class="row-body">
@@ -1057,7 +1081,7 @@ const mealRow = (m) => {
       ${macroChips(t)}
     </span>
     <span class="row-chev">${icon.chevron}</span>
-  </a>`;
+  </a>`);
 };
 
 function renderMeals() {
@@ -1570,6 +1594,7 @@ if (cloud.enabled) {
 }
 document.body.classList.toggle('read-only', !canEdit());
 window.addEventListener('hashchange', router);
+enableSwipe($view, { onDelete: swipeDelete, afterDelete: () => router({ soft: true }), enabled: canEdit });
 if (/access_token|error_description|type=recovery/.test(location.hash)) location.replace(location.pathname + '#/');
 router();
 hideSplash();
