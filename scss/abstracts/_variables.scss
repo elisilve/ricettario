@@ -1,0 +1,24 @@
+// =============================================================
+//  Variabili Sass
+// -------------------------------------------------------------
+//  Valori "di costruzione" che non cambiano col tema.
+//  I COLORI invece sono in base/_theme.scss come variabili CSS
+//  (--accent, --text…), perché devono cambiare al volo fra tema
+//  chiaro e scuro senza ricaricare la pagina.
+// =============================================================
+
+// ---------- Misure ----------
+$page-max-width: 680px;     // larghezza massima del contenuto (su iPad / computer)
+$navbar-height: 62px;       // barra in alto
+$tabbar-height: 60px;       // menu in basso
+$tabbar-bottom: 24px;       // distanza del menu dal fondo dello schermo
+$tab-width: 86px;           // larghezza di una voce del menu
+$tab-gap: 4px;              // spazio fra le voci del menu
+$fab-size: 40px;            // pulsante + in basso a destra
+$row-radius: 18px;          // angoli delle card nelle liste
+
+// ---------- Curve di animazione ----------
+$ease-ios: cubic-bezier(.32, .72, 0, 1);      // scorrimenti "alla iOS" (pagine, menu, schede)
+$ease-out: cubic-bezier(.2, .9, .25, 1);      // entrate morbide (pop-up, avvisi)
+$ease-soft: cubic-bezier(.2, .8, .2, 1);      // dissolvenza delle pagine
+$ease-bounce: cubic-bezier(.3, 1.6, .5, 1);   // piccolo rimbalzo delle icone

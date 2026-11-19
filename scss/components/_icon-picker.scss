@@ -1,0 +1,99 @@
+// =============================================================
+//  Selettore Emoji / Foto (ricette, categorie, alimenti, pasti)
+// -------------------------------------------------------------
+//  [anteprima]  [Emoji | Foto]
+//               [campo emoji o pulsante "Scegli foto"]
+//  Sotto: griglia di emoji suggerite (.emoji-picks, vedi sheet)
+// =============================================================
+
+.icon-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+// Anteprima quadrata a sinistra
+.ip-preview {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 22px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  font-size: 42px;
+  line-height: 1;
+
+  &.is-photo {
+    cursor: pointer;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+// Iniziale al posto dell'emoji (alimenti senza icona)
+.ip-emoji.is-placeholder {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 34px;
+}
+
+// Icona della fotocamera quando non c'è ancora una foto
+.ip-cam {
+  color: var(--accent);
+
+  svg {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+// Colonna a destra: selettore + campo
+.ip-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ip-field {
+  text-align: center;
+  font-size: 22px;
+  min-height: 42px;
+  padding: 6px;
+}
+
+.ip-choose {
+  margin: 0 !important;
+  width: 100%;
+  height: 42px;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// Griglia di emoji suggerite
+.emoji-picks {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emoji-pick {
+  font-size: 24px;
+  height: 42px;
+  border-radius: 10px;
+
+  &:active {
+    background: var(--input-bg);
+  }
+}

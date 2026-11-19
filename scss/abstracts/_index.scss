@@ -1,0 +1,4 @@
+// Punto unico da importare nei fogli che usano variabili o mixin:
+//   @use '../abstracts' as *;
+@forward 'variables';
+@forward 'mixins';

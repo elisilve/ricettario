@@ -1,0 +1,105 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Menu in basso (Ricette · Dispensa · Pasti) e pulsante +
+// -------------------------------------------------------------
+//  Il menu è allineato a sinistra e il + sta a destra, come
+//  nelle app iOS. La "pillola" colorata scivola sotto la voce
+//  attiva: app.js imposta --i (0, 1, 2) sulla barra.
+// =============================================================
+
+.tabbar {
+  position: fixed;
+  z-index: 15;
+  left: max(16px, calc(50vw - #{$page-max-width * .5 - 16px}));
+  bottom: calc(#{$tabbar-bottom} + var(--safe-bottom));
+  display: flex;
+  gap: $tab-gap;
+  height: $tabbar-height;
+  padding: 5px;
+  border-radius: $tabbar-height * .5;
+
+  a {
+    position: relative;
+    z-index: 1; // sopra la pillola
+    width: $tab-width;
+    border-radius: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    transition: background .2s, color .2s;
+
+    svg {
+      width: 22px;
+      height: 22px;
+      transition: transform .25s $ease-bounce;
+    }
+
+    &.active {
+      color: var(--accent);
+
+      svg { transform: scale(1.08); }
+    }
+
+    &:active svg {
+      transform: scale(.88);
+    }
+  }
+}
+
+// La pillola sotto la voce attiva
+.tab-pill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: $tab-width;
+  border-radius: 25px;
+  background: var(--accent-soft);
+  transform: translateX(calc(var(--i, 0) * #{$tab-width + $tab-gap}));
+  transition: transform .45s $ease-ios;
+}
+
+body.no-tabbar .tabbar {
+  display: none;
+}
+
+// ---------- Pulsante + (aggiungi) ----------
+.fab {
+  position: fixed;
+  z-index: 15;
+  right: max(20px, calc(50vw - #{$page-max-width * .5 - 20px}));
+  // centrato in altezza rispetto al menu
+  bottom: calc(#{$tabbar-bottom + ($tabbar-height - $fab-size) * .5} + var(--safe-bottom));
+  width: $fab-size;
+  height: $fab-size;
+  border-radius: 50%;
+  @include center-grid;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(15, 157, 138, .4), inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: transform .15s;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.6;
+  }
+
+  // area di tocco invisibile più grande (48px): si preme facilmente anche se è piccolo
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+  }
+
+  &:active {
+    transform: scale(.92);
+  }
+}

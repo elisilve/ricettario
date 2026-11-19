@@ -1,0 +1,66 @@
+// =============================================================
+//  Icone: foto al posto delle emoji, icone degli alimenti
+// =============================================================
+
+// Foto che riempie il suo riquadro (ricette, categorie, pasti)
+.avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+// Misure della foto nei vari punti
+.cat-emoji .avatar-img { width: 58px; height: 58px; border-radius: 16px; }
+.big-emoji .avatar-img { width: 76px; height: 76px; border-radius: 22px; }
+.pill-icon .avatar-img { width: 18px; height: 18px; border-radius: 50%; }
+
+.title-emoji .avatar-img {
+  display: inline-block;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  vertical-align: -6px;
+}
+
+.pill-icon {
+  display: inline-flex;
+}
+
+// Iniziale colorata per gli alimenti senza emoji né foto
+.food-letter {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+// ---------- Icona piccola accanto a un ingrediente ----------
+.ing-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-soft);
+  font-size: 16px;
+  line-height: 1;
+
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .food-letter {
+    font-size: 13px;
+  }
+
+  // segnaposto vuoto: tiene allineati i nomi degli ingredienti senza icona
+  &.blank {
+    background: transparent;
+  }
+}

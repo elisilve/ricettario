@@ -1,0 +1,94 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Editor di ricette e pasti
+// -------------------------------------------------------------
+//  Ogni ingrediente è una riga:
+//  [qtà] [unità ▾] [nome ingrediente……] [×]
+//   valori calcolati · "+ Aggiungi alla dispensa"
+//   suggerimenti dalla dispensa (mentre scrivi)
+// =============================================================
+
+// ---------- Riga ingrediente ----------
+.ing-row {
+  margin-bottom: 10px;
+
+  .qty {
+    width: 66px;
+    flex-shrink: 0;
+  }
+
+  // menu dell'unità più stretto, con la freccina più piccola
+  .unit {
+    width: 98px;
+    flex-shrink: 0;
+    padding-right: 26px;
+    background-position: right 8px center;
+    background-size: 15px;
+  }
+}
+
+.ing-fields {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+// Valori calcolati sotto l'ingrediente
+.ing-calc {
+  margin: 4px 4px 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  @include tabular;
+
+  &:empty { display: none; }
+
+  .warn { color: var(--danger); }
+}
+
+// ---------- Riga passaggio della preparazione ----------
+.step-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+
+  .step-n { margin-top: 9px; }
+}
+
+// ---------- Suggerimenti mentre scrivi ----------
+.suggest {
+  margin-top: 6px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--glass-strong);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--glass-shadow);
+
+  button {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--hairline);
+
+    &:last-child { border-bottom: 0; }
+    &:active { background: var(--accent-soft); }
+  }
+
+  small {
+    color: var(--text-2);
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+}
+
+// nome del suggerimento con la sua icona
+.sg-name {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}

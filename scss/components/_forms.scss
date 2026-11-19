@@ -1,0 +1,125 @@
+// =============================================================
+//  Campi dei moduli: testo, menu a tendina, etichette, ricerca
+// =============================================================
+
+// Un modulo è fatto di card con i campi uno sotto l'altro
+.form .card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form .card-title {
+  margin-bottom: 0;
+}
+
+// ---------- Campo di testo / menu a tendina / area di testo ----------
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 17px; // almeno 16px: così l'iPhone non fa lo zoom automatico
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color .15s, background .15s;
+
+  &:focus {
+    border-color: var(--accent);
+    background: var(--glass-strong);
+  }
+
+  &::placeholder {
+    color: var(--text-3);
+  }
+}
+
+textarea.input {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+// Menu a tendina: freccina disegnata a destra
+select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 40px;
+}
+
+// ---------- Campo con etichetta sopra ----------
+// <label class="field"><span>Porzioni</span><input class="input"></label>
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  > span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    padding-left: 4px;
+  }
+}
+
+// Campi affiancati: due colonne (o tre con .three)
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  &.three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// Etichette colorate dei macronutrienti (Proteine, Carboidrati, Grassi)
+.macro-field {
+  &.p > span { color: var(--prot); }
+  &.c > span { color: var(--carb-text); }
+  &.f > span { color: var(--fat); }
+}
+
+// ---------- Spiegazione piccola sotto un campo ----------
+.hint {
+  margin: -2px 4px 0;
+  font-size: 14px;
+  color: var(--text-2);
+
+  strong {
+    color: var(--text);
+  }
+}
+
+// ---------- Barra di ricerca ----------
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  color: var(--text-2);
+
+  input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: none;
+    font: inherit;
+    font-size: 17px;
+    color: var(--text);
+    -webkit-appearance: none;
+    appearance: none;
+
+    &::placeholder {
+      color: var(--text-3);
+    }
+  }
+}

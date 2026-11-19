@@ -1,0 +1,17 @@
+// =============================================================
+//  Dispensa: elenco degli alimenti
+// =============================================================
+
+.subtitle + .search {
+  margin-top: 4px;
+}
+
+.pantry-list {
+  margin-top: 14px;
+}
+
+// Le righe della dispensa sono <button>: occupano tutta la larghezza
+.food-row {
+  width: 100%;
+  text-align: left;
+}

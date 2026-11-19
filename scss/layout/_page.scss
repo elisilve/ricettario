@@ -1,0 +1,52 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Pagina: contenitore, animazioni di entrata e titoli
+// =============================================================
+
+.view {
+  // spazio sopra per la barra in alto, sotto per il menu
+  padding: calc(#{$navbar-height} + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
+  max-width: $page-max-width;
+  margin: 0 auto;
+
+  // Si anima il contenuto, non la pagina intera: così il pulsante +
+  // (fisso in basso) resta fermo. Le animazioni sono in base/_animations.scss
+  &.enter > section { animation: enter .32s $ease-soft; }
+  &.enter-right > section { animation: enter-right .42s $ease-ios; }
+  &.enter-left > section { animation: enter-left .42s $ease-ios; }
+}
+
+// Titolo grande in cima alla pagina (come nelle app Apple)
+.large-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  margin: 6px 4px 14px;
+
+  &.center {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+}
+
+.title-emoji {
+  margin-right: 10px;
+}
+
+// Riga grigia sotto il titolo
+.subtitle {
+  margin: -10px 4px 18px;
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+// Titolo di una sezione (es. "Ultime ricette", "Colazione")
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin: 26px 4px 12px;
+}

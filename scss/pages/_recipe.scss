@@ -1,0 +1,189 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Dettaglio di una ricetta (anche del pasto)
+// -------------------------------------------------------------
+//  emoji grande · pillole (tempo, porzioni) · valori nutrizionali
+//  · ingredienti · preparazione · note
+// =============================================================
+
+// ---------- Intestazione ----------
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.hero-emoji {
+  width: 96px;
+  height: 96px;
+  border-radius: 30px;
+  @include center-grid;
+  font-size: 54px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// ---------- Porzioni: [ − ] 2 👤 [ + ] ----------
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--input-bg);
+
+  button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    @include center-grid;
+    color: var(--accent);
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    &:active {
+      background: var(--glass-strong);
+    }
+  }
+}
+
+#portions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 0 4px;
+  @include tabular;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-2);
+  }
+}
+
+// ---------- Ingredienti ----------
+.ingredients {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hairline);
+
+    // Ingredienti senza valori (q.b., pizzico): riga più bassa
+    &.compact {
+      padding-top: 7px;
+      padding-bottom: 7px;
+
+      .ing-avatar { height: 18px; }
+    }
+
+    // l'ultimo senza linea sotto (dopo .compact: vince su di lui)
+    &:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    // i valori sotto l'ingrediente partono allineati al nome, dopo l'icona
+    &:has(.ing-avatar) .ing-macros {
+      padding-left: 34px;
+    }
+  }
+}
+
+// nome a sinistra, quantità a destra
+.ing-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ing-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ing-qty {
+  color: var(--text-2);
+  white-space: nowrap;
+  @include tabular;
+}
+
+.ing-macros {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  @include tabular;
+}
+
+// ---------- Preparazione: passaggi numerati ----------
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  li {
+    display: flex;
+    gap: 12px;
+  }
+
+  p {
+    margin: 3px 0 0;
+  }
+}
+
+// Numero tondo del passaggio (usato anche nell'editor)
+.step-n {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  @include center-grid;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.notes {
+  margin: 0;
+  color: var(--text-2);
+  white-space: pre-line; // mantiene gli a capo scritti nelle note
+}

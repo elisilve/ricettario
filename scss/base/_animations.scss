@@ -1,0 +1,35 @@
+// =============================================================
+//  Animazioni condivise
+// =============================================================
+
+// Entrata di una pagina: dal basso, da destra o da sinistra
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes enter-right {
+  from { opacity: 0; transform: translateX(36px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes enter-left {
+  from { opacity: 0; transform: translateX(-36px); }
+  to { opacity: 1; transform: none; }
+}
+
+// Contenuto di una scheda del pannello Account (--dir: 1 da destra, -1 da sinistra)
+@keyframes pane-in {
+  from { opacity: 0; transform: translateX(calc(var(--dir) * 28px)); }
+  to { opacity: 1; transform: none; }
+}
+
+// Chi ha attivato "Riduci movimento" sull'iPhone non vede animazioni
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

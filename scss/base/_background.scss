@@ -1,0 +1,37 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Sfondo a macchie colorate ed effetto vetro
+// =============================================================
+
+// Le tre macchie sfocate dietro a tutto
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: .55;
+
+  [data-theme="dark"] & {
+    opacity: .1;
+  }
+}
+
+.b1 { width: 60vmax; height: 60vmax; background: #9fe3d6; top: -20vmax; right: -20vmax; }
+.b2 { width: 50vmax; height: 50vmax; background: #a8c8ff; bottom: -15vmax; left: -20vmax; }
+.b3 { width: 35vmax; height: 35vmax; background: #dcd6ff; top: 35%; left: 40%; opacity: .45; }
+
+// Effetto vetro: si aggiunge la classe "glass" a card, righe, menu…
+.glass {
+  background: var(--glass);
+  @include frosted;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}

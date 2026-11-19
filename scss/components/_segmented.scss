@@ -1,0 +1,39 @@
+// =============================================================
+//  Selettore a segmenti (come quello di iOS)
+// -------------------------------------------------------------
+//  <div class="segmented">
+//    <button class="on">Emoji</button><button>Foto</button>
+//  </div>
+//  Il pulsante con la classe "on" è quello scelto.
+// =============================================================
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--input-bg);
+
+  button {
+    height: 34px;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-2);
+    transition: background .2s, color .2s;
+
+    &.on {
+      background: var(--glass-strong);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .1);
+    }
+  }
+
+  // Quattro voci: momenti del pasto (Colazione, Pranzo, Cena, Spuntino)
+  &.moments {
+    grid-template-columns: repeat(4, 1fr);
+
+    button { font-size: 13.5px; }
+  }
+}

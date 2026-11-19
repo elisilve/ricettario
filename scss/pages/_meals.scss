@@ -1,0 +1,23 @@
+// =============================================================
+//  Pasti
+// -------------------------------------------------------------
+//  Il selettore Colazione/Pranzo/Cena/Spuntino è in
+//  components/_segmented.scss (variante .moments)
+// =============================================================
+
+// Etichetta "Ricetta" accanto agli elementi che sono ricette
+.tag-recipe {
+  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 4px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+// Nome della ricetta cliccabile nel dettaglio del pasto
+.meal-recipe-link {
+  color: var(--accent);
+}

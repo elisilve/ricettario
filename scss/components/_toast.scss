@@ -1,0 +1,33 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Avviso temporaneo in alto (es. "Ricetta eliminata")
+// =============================================================
+
+.toast {
+  position: fixed;
+  left: 50%;
+  z-index: 60;
+  top: calc(12px + var(--safe-top));
+  transform: translate(-50%, -150%); // nascosto sopra lo schermo
+  opacity: 0;
+  padding: 10px 18px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--glass-strong);
+  color: var(--text);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+  transition: transform .3s $ease-out, opacity .3s;
+  max-width: 90vw;
+  @include ellipsis;
+  pointer-events: none; // non blocca i tocchi su quello che c'è sotto
+
+  &.show {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}

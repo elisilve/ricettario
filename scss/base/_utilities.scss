@@ -1,0 +1,30 @@
+// =============================================================
+//  Utilità: piccole classi usate un po' ovunque
+// =============================================================
+
+.muted {
+  color: var(--text-2);
+}
+
+.center {
+  text-align: center;
+}
+
+// Chi ha accesso in sola lettura non vede i pulsanti per modificare
+body.read-only .edit-only {
+  display: none !important;
+}
+
+// Con un pop-up aperto la pagina sotto non scorre…
+html.sheet-open,
+html.sheet-open body {
+  overflow: hidden;
+}
+
+// …e il pulsante + e il menu in basso non si intravedono in trasparenza
+html.sheet-open .fab,
+html.sheet-open .tabbar {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}

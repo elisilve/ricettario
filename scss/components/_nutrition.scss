@@ -1,0 +1,205 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Valori nutrizionali
+// -------------------------------------------------------------
+//  - anello colorato con le calorie al centro (.ring)
+//  - elenco dei macronutrienti con pallino e percentuale (.macro)
+//  - totale calcolato e valori per porzione (.auto-total, .per-serving)
+//  - badge rossi degli ingredienti non conteggiati (.badge-miss)
+// =============================================================
+
+.nutrition {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+// ---------- Anello ----------
+// app.js imposta --p (fine delle proteine) e --c (fine dei carboidrati) in %
+.ring {
+  --p: 33%;
+  --c: 66%;
+  position: relative;
+  width: 116px;
+  height: 116px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  @include center-grid;
+
+  // l'anello: una torta colorata "bucata" al centro da una maschera
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(var(--prot) 0 var(--p), var(--carb) var(--p) var(--c), var(--fat) var(--c) 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
+  }
+}
+
+.ring-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  strong {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: -.02em;
+    @include tabular;
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-2);
+  }
+}
+
+// ---------- Elenco dei macronutrienti ----------
+.macros {
+  flex: 1;
+  min-width: 0;
+}
+
+.macro {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto; // pallino · nome · grammi · %
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 15px;
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  &.p .dot { background: var(--prot); }
+  &.c .dot { background: var(--carb); }
+  &.f .dot { background: var(--fat); }
+}
+
+.macro-val {
+  font-weight: 600;
+  white-space: nowrap;
+  @include tabular;
+}
+
+.macro-pct {
+  color: var(--text-2);
+  font-size: 13px;
+  width: 36px;
+  text-align: right;
+  @include tabular;
+}
+
+// Numeri colorati nelle righe di testo (P 12gr · C 30gr · G 5gr)
+.ml {
+  &.p { color: var(--prot); }
+  &.c { color: var(--carb-text); }
+  &.f { color: var(--fat); }
+}
+
+// ---------- Per porzione ----------
+.per-serving {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--text-2);
+  @include tabular;
+}
+
+.ps-label {
+  @include caps-label;
+  letter-spacing: .04em;
+  font-size: 11.5px;
+  color: inherit;
+}
+
+.ps-values strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+// ---------- Totale calcolato (editor di ricette e pasti) ----------
+.auto-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.at-label {
+  @include caps-label;
+  font-size: 12px;
+  letter-spacing: .05em;
+}
+
+.at-kcal {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  @include tabular;
+
+  small {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+}
+
+.at-macros {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+// Nota piccola con icona sotto i valori ("Calcolati dagli ingredienti…")
+.nut-note,
+#nut-auto .hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+
+  svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+
+// ---------- Ingredienti non conteggiati ----------
+.missing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.badge-miss {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  svg { flex-shrink: 0; }
+}

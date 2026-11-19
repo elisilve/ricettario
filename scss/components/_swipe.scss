@@ -1,0 +1,75 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Scorri a sinistra per eliminare (logica in js/swipe.js)
+// -------------------------------------------------------------
+//  <div class="swipe">
+//    <button class="swipe-action">🗑 Elimina</button>   ← dietro, a destra
+//    <a class="row">…</a>                              ← la card che scorre
+//  </div>
+//  swipe.js imposta --reveal = quanto è largo il pulsante rosso.
+// =============================================================
+
+.swipe {
+  position: relative;
+  touch-action: pan-y; // la pagina scorre in verticale, il dito in orizzontale lo gestiamo noi
+
+  > .row {
+    position: relative;
+    z-index: 1;
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+}
+
+// Pulsante rosso che compare da destra
+.swipe-action {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: var(--reveal, 0px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: $row-radius;
+  overflow: hidden;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  &:active { filter: brightness(.9); }
+
+  :root[data-theme="dark"] & { background: #ff453a; }
+  body.read-only & { display: none; }
+}
+
+// Mentre la card torna a posto o si apre da sola
+.swipe-anim .swipe-action {
+  transition: width .32s cubic-bezier(.2, .9, .3, 1);
+}
+
+// Card eliminata: si chiude in altezza
+.swipe-gone {
+  height: 0 !important;
+  opacity: 0;
+  margin-bottom: -10px; // recupera lo spazio fra le card
+  overflow: hidden;
+  transition: height .3s ease, opacity .25s ease, margin .3s ease;
+}

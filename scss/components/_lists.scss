@@ -1,0 +1,87 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Liste di card: ricette, alimenti, pasti
+// -------------------------------------------------------------
+//  <div class="list">
+//    <a class="row glass">
+//      <span class="row-emoji">🥣</span>
+//      <span class="row-body"> titolo · dettagli · chips </span>
+//      <span class="row-chev">›</span>
+//    </a>
+//  </div>
+// =============================================================
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 12px 12px;
+  border-radius: $row-radius;
+  transition: transform .15s;
+
+  &:active {
+    transform: scale(.97);
+  }
+}
+
+// Riquadro con emoji o foto a sinistra
+.row-emoji {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  @include center-grid;
+  font-size: 28px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+
+.row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-title {
+  font-weight: 600;
+  @include ellipsis;
+}
+
+.row-meta {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.row-chev {
+  color: var(--text-3);
+}
+
+// ---------- Pillole dei macronutrienti (P 12gr · C 30gr · G 5gr) ----------
+.chips {
+  display: flex;
+  gap: 5px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  @include tabular;
+
+  &.p { color: var(--prot); background: color-mix(in srgb, var(--prot) 14%, transparent); }
+  &.c { color: var(--carb-text); background: color-mix(in srgb, var(--carb) 18%, transparent); }
+  &.f { color: var(--fat); background: color-mix(in srgb, var(--fat) 14%, transparent); }
+}

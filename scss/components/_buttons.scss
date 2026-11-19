@@ -1,0 +1,151 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Pulsanti
+// -------------------------------------------------------------
+//  <button class="btn primary full">  → pulsante pieno, largo quanto la card
+//  Varianti: primary · ghost · danger · danger-ghost
+//  Misure:   full (larghezza piena) · small (più basso)
+// =============================================================
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 50px;
+  padding: 0 22px;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 17px;
+  transition: transform .12s, opacity .12s;
+
+  &:active {
+    transform: scale(.97);
+    opacity: .85;
+  }
+
+  // ---------- Misure ----------
+  &.full {
+    width: 100%;
+  }
+
+  &.small {
+    height: 40px;
+    font-size: 15px;
+    padding: 0 14px;
+    margin-top: 6px;
+  }
+
+  // ---------- Colori ----------
+  &.primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(15, 157, 138, .32);
+  }
+
+  &.ghost {
+    background: var(--input-bg);
+    color: var(--accent);
+  }
+
+  &.danger {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  &.danger-ghost {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    margin-top: 8px;
+  }
+}
+
+// Pulsante rotondo con sola icona (es. rimuovi persona)
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  @include center-grid;
+  color: var(--text-3);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &.danger:active {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+}
+
+// Link testuale (es. "Password dimenticata?")
+.link-btn {
+  margin-top: 16px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+
+  &.small {
+    margin: 8px 4px 0;
+    font-size: 14px;
+  }
+}
+
+// Croce per togliere una riga (ingredienti, passaggi)
+.remove {
+  width: 30px;
+  height: 46px;
+  flex-shrink: 0;
+  @include center-grid;
+  color: var(--text-3);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:active {
+    color: var(--danger);
+  }
+}
+
+// Pillola "+ Aggiungi alla dispensa" sotto un ingrediente
+.add-pantry {
+  @include soft-pill;
+  gap: 4px;
+  margin: 3px 0 0 8px;
+  vertical-align: middle;
+  padding: 4px 10px 4px 7px;
+  font-size: 12.5px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.6;
+  }
+
+  &:active {
+    opacity: .6;
+  }
+}
+
+// Pillola "Invia" accanto a un invito
+.share-btn {
+  @include soft-pill;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px 0 9px;
+  font-size: 13px;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:active {
+    opacity: .6;
+  }
+}

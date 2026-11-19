@@ -1,0 +1,52 @@
+// =============================================================
+//  Ricettario — foglio di stile principale
+// -------------------------------------------------------------
+//  Questo file non contiene stili: elenca solo i pezzi (nella
+//  cartella scss/), nell'ordine in cui vengono uniti in style.css
+//  qui accanto. L'ordine conta: a parità di selettore vince la
+//  regola che viene dopo.
+//
+//  Dove cercare cosa (cartella scss/):
+//    abstracts/   variabili Sass e mixin (non producono CSS da soli)
+//    base/        colori e tema, reset, sfondo, animazioni, utilità
+//    layout/      struttura fissa: barra in alto, pagina, menu in basso
+//    components/  pezzi riutilizzati ovunque (pulsanti, card, pop-up…)
+//    pages/       stili che servono a una sola schermata
+//
+//  Non modificare style.css a mano: Live Sass Compiler lo rigenera
+//  da qui ogni volta che salvi (vedi README → "Modificare lo stile").
+// =============================================================
+
+// ---------- Base ----------
+@use '../scss/base/theme';
+@use '../scss/base/reset';
+@use '../scss/base/background';
+@use '../scss/base/animations';
+@use '../scss/base/utilities';
+
+// ---------- Layout ----------
+@use '../scss/layout/navbar';
+@use '../scss/layout/page';
+@use '../scss/layout/tabbar';
+
+// ---------- Componenti ----------
+@use '../scss/components/buttons';
+@use '../scss/components/cards';
+@use '../scss/components/forms';
+@use '../scss/components/segmented';
+@use '../scss/components/lists';
+@use '../scss/components/avatars';
+@use '../scss/components/icon-picker';
+@use '../scss/components/nutrition';
+@use '../scss/components/sheet';
+@use '../scss/components/toast';
+@use '../scss/components/swipe';
+
+// ---------- Pagine ----------
+@use '../scss/pages/home';
+@use '../scss/pages/recipe';
+@use '../scss/pages/editor';
+@use '../scss/pages/pantry';
+@use '../scss/pages/meals';
+@use '../scss/pages/auth';
+@use '../scss/pages/account';

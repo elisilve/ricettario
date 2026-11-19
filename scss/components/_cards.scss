@@ -1,0 +1,74 @@
+// =============================================================
+//  Card: i riquadri di vetro che contengono le sezioni
+// -------------------------------------------------------------
+//  <div class="card glass">
+//    <h2 class="card-title">Ingredienti <small>4</small></h2>
+//    …
+//  </div>
+// =============================================================
+
+.card {
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+// Riga del titolo con qualcosa a destra (es. le porzioni)
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+
+  .card-title { margin: 0; }
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin: 0 0 10px;
+
+  small {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin-left: 4px;
+  }
+}
+
+.card-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-2);
+}
+
+// Riquadro vuoto con emoji grande (es. "La dispensa è vuota")
+.empty-state {
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  p {
+    color: var(--text-2);
+    margin: 4px 0 14px;
+  }
+}
+
+.big-emoji {
+  font-size: 48px;
+}
+
+// Scritta grigia centrata quando una ricerca non trova niente
+.empty {
+  color: var(--text-2);
+  text-align: center;
+  padding: 30px 0;
+}

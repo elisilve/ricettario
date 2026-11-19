@@ -1,0 +1,45 @@
+// =============================================================
+//  Mixin: blocchi di regole riutilizzabili
+//  Si usano con  @include nome;
+// =============================================================
+
+// Effetto vetro smerigliato (sfoca quello che c'è dietro)
+@mixin frosted {
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+// Testo su una riga sola con "…" se è troppo lungo
+@mixin ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Numeri tutti della stessa larghezza (non "ballano" quando cambiano)
+@mixin tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+// Etichetta piccola in maiuscoletto (es. "TOTALE RICETTA")
+@mixin caps-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+// Contenitore centrato: icona/emoji al centro di un quadrato
+@mixin center-grid {
+  display: grid;
+  place-items: center;
+}
+
+// Pulsantino a pillola colorato (es. "+ Aggiungi alla dispensa", "Invia")
+@mixin soft-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 99px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+}

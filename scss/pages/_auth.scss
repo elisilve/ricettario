@@ -1,0 +1,81 @@
+// =============================================================
+//  Accesso: login, registrazione, password dimenticata
+// =============================================================
+
+.auth {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom));
+  background: var(--bg);
+  transition: opacity .3s;
+
+  &.hide {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+// Mentre c'è la schermata di accesso, l'app dietro non si vede
+body.auth-open {
+  .navbar,
+  .tabbar,
+  .view {
+    visibility: hidden;
+  }
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.auth-logo {
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(15, 157, 138, .28);
+}
+
+.auth-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin: 18px 0 6px;
+}
+
+.auth-sub {
+  color: var(--text-2);
+  margin: 0 0 22px;
+  font-size: 16px;
+}
+
+.auth-tabs {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+// Messaggio sotto il modulo (verde se va bene, rosso se c'è un errore)
+.auth-msg {
+  margin: 2px 4px;
+  font-size: 14px;
+  color: var(--accent);
+  text-align: left;
+
+  &.error { color: var(--danger); }
+}
