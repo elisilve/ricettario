@@ -13,6 +13,8 @@
 --   • items    = categorie, ricette, alimenti della dispensa e pasti (salvati come JSON,
 --                con la stessa forma che usa l'app)
 --   • foto     = nello Storage, bucket "photos", cartella = id del ricettario
+--   • diary    = il diario alimentare: PERSONALE (una riga per utente e per giorno),
+--                non fa parte del ricettario e non lo vede nessun altro
 --
 --  La sicurezza è garantita dal database con la Row Level Security (RLS):
 --  ognuno legge e scrive solo i ricettari di cui fa parte, secondo il suo ruolo.
@@ -54,6 +56,16 @@ create table if not exists public.items (
   updated_at  timestamptz not null default now(),
   updated_by  uuid default auth.uid(),
   primary key (book_id, kind, id)
+);
+
+-- Diario alimentare: una riga per persona e per giorno.
+-- data = { "colazione": [ elementi ], "pranzo": [ … ], … } (stessa forma dei pasti)
+create table if not exists public.diary (
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  day        date not null,
+  data       jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day)
 );
 
 
@@ -129,8 +141,8 @@ end $$;
 -- Solo gli utenti che hanno fatto l'accesso possono usare le tabelle
 -- (cosa possono vedere e modificare lo decidono poi le regole RLS qui sotto)
 
-revoke all on public.books, public.members, public.invites, public.items from anon;
-grant select, insert, update, delete on public.books, public.members, public.invites, public.items to authenticated;
+revoke all on public.books, public.members, public.invites, public.items, public.diary from anon;
+grant select, insert, update, delete on public.books, public.members, public.invites, public.items, public.diary to authenticated;
 revoke execute on function public.create_book(text), public.accept_invites() from public, anon;
 grant execute on function public.create_book(text), public.accept_invites() to authenticated;
 
@@ -141,13 +153,14 @@ alter table public.books   enable row level security;
 alter table public.members enable row level security;
 alter table public.invites enable row level security;
 alter table public.items   enable row level security;
+alter table public.diary   enable row level security;
 
 -- Rieseguendo lo script le regole vengono ricreate da zero
 do $$
 declare p record;
 begin
   for p in select policyname, tablename from pg_policies
-           where schemaname = 'public' and tablename in ('books', 'members', 'invites', 'items') loop
+           where schemaname = 'public' and tablename in ('books', 'members', 'invites', 'items', 'diary') loop
     execute format('drop policy %I on public.%I', p.policyname, p.tablename);
   end loop;
 end $$;
@@ -180,6 +193,10 @@ create policy items_insert on public.items for insert to authenticated with chec
 create policy items_update on public.items for update to authenticated using (public.can_edit(book_id)) with check (public.can_edit(book_id));
 create policy items_delete on public.items for delete to authenticated using (public.can_edit(book_id));
 
+-- Diario: ognuno vede e modifica solo il proprio
+create policy diary_own on public.diary for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 
 -- ---------- Foto (Storage) ----------
 -- Percorso di ogni foto: <id ricettario>/<id foto>.jpg
@@ -203,13 +220,17 @@ create policy photos_delete on storage.objects for delete to authenticated
 
 
 -- ---------- Aggiornamenti in tempo reale ----------
--- Le modifiche fatte da un altro membro compaiono subito anche sugli altri dispositivi
+-- Le modifiche fatte da un altro membro (o dal tuo altro dispositivo) compaiono subito
 
 do $$
+declare t text;
 begin
-  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
-     and not exists (select 1 from pg_publication_tables
-                     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'items') then
-    alter publication supabase_realtime add table public.items;
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach t in array array['items', 'diary'] loop
+      if not exists (select 1 from pg_publication_tables
+                     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+        execute format('alter publication supabase_realtime add table public.%I', t);
+      end if;
+    end loop;
   end if;
 end $$;

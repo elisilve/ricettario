@@ -37,6 +37,11 @@
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
     mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
   }
+
+  // ancora niente da contare (es. giornata vuota del diario): anello grigio
+  &.empty::before {
+    background: var(--input-bg);
+  }
 }
 
 .ring-inner {

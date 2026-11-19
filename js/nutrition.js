@@ -96,21 +96,41 @@ export function recipeNutrition(r, portions = r.servings || 1) {
 
 
 /**
- * Valori di un pasto: somma dei suoi elementi.
+ * Valori di un elemento di un pasto o del diario.
  *  - alimento della dispensa: come un ingrediente (es. 200 ml di latte di mandorla)
  *  - ricetta: valori per porzione × numero di porzioni
- * Restituisce { total, perItem[], missing[] }
+ *  - pasto salvato: valori del pasto intero × quante volte
+ * Se la ricetta o il pasto non esistono più si usa la copia dei valori (snap)
+ * salvata quando l'elemento è stato aggiunto. null = non calcolabile.
+ */
+export function itemMacros(it) {
+  const times = Number(it.qty) || 1;
+  if (it.recipeId || it.mealId) {
+    const per = unitValues(it);
+    return per ? scale(per, times) : null;
+  }
+  return ingredientMacros(it);
+}
+
+/** Valori di UNA porzione di una ricetta o di UN pasto salvato (quelli da copiare in snap) */
+export function unitValues(it) {
+  if (it.recipeId) {
+    const r = store.getRecipe(it.recipeId);
+    if (r) return recipeNutrition(r).perServing;
+  }
+  if (it.mealId) {
+    const m = store.getMeal(it.mealId);
+    if (m) return mealNutrition(m).total;
+  }
+  return it.snap || null;
+}
+
+/**
+ * Valori di un insieme di elementi (un pasto salvato, un momento del diario, una giornata).
+ * Restituisce { total, perItem[], missing[] }  — missing = nomi non conteggiati
  */
 export function mealNutrition(meal) {
-  const perItem = meal.items.map((it) => {
-    if (it.recipeId) {
-      const r = store.getRecipe(it.recipeId);
-      if (!r) return null;
-      const k = Number(it.qty) || 1;
-      return scale(recipeNutrition(r).perServing, k);
-    }
-    return ingredientMacros(it);
-  });
+  const perItem = meal.items.map(itemMacros);
   const total = perItem.reduce((acc, m) => (m ? add(acc, m) : acc), { ...ZERO });
   const missing = meal.items.filter((it, i) => it.name && !perItem[i] && !isNegligible(it)).map((it) => it.name);
   return { total, perItem, missing };

@@ -16,6 +16,10 @@ Si installa sulla schermata Home come un'app vera e funziona anche offline.
   i macronutrienti si calcolano da soli in base alla quantità, con totale ricetta e per porzione
 - **Pasti**: combinazioni che mangi spesso (alimenti della dispensa + porzioni di ricette),
   raggruppate per momento della giornata, con calorie e macro già sommati
+- **Diario**: calendario della settimana (pallino pieno nei giorni con qualcosa segnato), anello con
+  calorie e macro della giornata, cinque momenti (colazione, spuntini, pranzo, cena) in cui aggiungere
+  alimenti della dispensa, ricette o pasti salvati — anche con un tocco. Il diario è personale:
+  non viene condiviso con chi usa il tuo ricettario
 - Foto o emoji per ricette e categorie
 - Modalità chiara / scura
 - **Account e condivisione** (Supabase): accesso da qualsiasi dispositivo, ricettari condivisi
@@ -47,6 +51,7 @@ scss/                  stile, diviso per argomento (si modifica qui)
   pages/               stili di una sola schermata (ricetta, editor, dispensa, pasti, account…)
 css/style.css          CSS generato da css/style.scss (non modificarlo a mano)
 js/swipe.js            scorri a sinistra per eliminare
+js/diary.js            diario alimentare: dati, date, sincronizzazione personale
 js/app.js              router e schermate
 js/store.js            dati e salvataggio
 js/ui.js               icone, modali, utility
@@ -96,5 +101,6 @@ Dove cercare:
 - [x] Pasti salvati (es. "colazione tipo")
 - [ ] Piano alimentare settimanale
 - [ ] Lista della spesa generata dal piano, con spunte
-- [ ] Diario giornaliero con obiettivi di macronutrienti
+- [x] Diario giornaliero
+- [ ] Obiettivi di calorie e macronutrienti nel diario
 - [x] Account, sincronizzazione fra dispositivi e condivisione

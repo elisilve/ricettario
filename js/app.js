@@ -4,10 +4,11 @@
 import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { enableSwipe, swipeWrap } from './swipe.js';
+import * as diary from './diary.js';
 import * as cloud from './cloud.js';
 import { authScreen, accountSheet, errorText } from './account.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet, themeRow, bindThemeRow } from './ui.js';
-import { recipeNutrition, mealNutrition, foodKcal, isNegligible, resolveFood } from './nutrition.js';
+import { recipeNutrition, mealNutrition, itemMacros, unitValues, foodKcal, isNegligible, resolveFood } from './nutrition.js';
 
 const $view = document.getElementById('view');
 const $navbar = document.getElementById('navbar');
@@ -21,6 +22,8 @@ const routes = [
   [/^#?\/?$/, () => renderHome()],
   [/^#\/dispensa$/, () => renderPantry()],
   [/^#\/pasti$/, () => renderMeals()],
+  [/^#\/diario(?:\/(\d{4}-\d\d-\d\d))?$/, (m) => renderDiary(m[1])],
+  [/^#\/diario\/(\d{4}-\d\d-\d\d)\/([\w-]+)$/, (m) => renderDiarySlot(m[1], m[2])],
   [/^#\/pasto\/([\w-]+)$/, (m) => renderMeal(m[1])],
   [/^#\/nuovo-pasto(?:\/([\w-]+))?$/, (m) => renderMealEditor(null, m[1])],
   [/^#\/modifica-pasto\/([\w-]+)$/, (m) => renderMealEditor(m[1])],
@@ -33,12 +36,19 @@ const routes = [
 /** soft: ridisegna la schermata attuale senza animazione e senza tornare in cima
  *  (usato quando arrivano modifiche da un altro dispositivo o da un'altra persona) */
 // Sezioni del menu in basso, nell'ordine in cui compaiono
-const TAB_ORDER = ['ricette', 'dispensa', 'pasti'];
-const topTab = (hash) => ({ '#/': 'ricette', '#': 'ricette', '': 'ricette', '#/dispensa': 'dispensa', '#/pasti': 'pasti' }[hash] || null);
+const TAB_ORDER = ['ricette', 'dispensa', 'pasti', 'diario'];
+const DIARY_DAY = /^#\/diario(\/\d{4}-\d\d-\d\d)?$/; // pagina del diario (oggi o un altro giorno)
+const topTab = (hash) =>
+  ({ '#/': 'ricette', '#': 'ricette', '': 'ricette', '#/dispensa': 'dispensa', '#/pasti': 'pasti' }[hash] ||
+  (DIARY_DAY.test(hash) ? 'diario' : null));
+let lastHash = '';
 let lastTop = null;
 
 function router({ soft = false } = {}) {
   const hash = location.hash || '#/';
+  // nel diario, passando da un giorno all'altro la pagina non "rientra": cambia solo il contenuto
+  if (DIARY_DAY.test(hash) && DIARY_DAY.test(lastHash) && hash !== lastHash) soft = true;
+  lastHash = hash;
   // Chi ha accesso in sola lettura non può aprire l'editor
   if (!canEdit() && /^#\/(nuova|nuovo-pasto|modifica)/.test(hash)) return location.replace('#/');
   for (const [re, view] of routes) {
@@ -127,7 +137,8 @@ $tabbar.innerHTML = `
   <span class="tab-pill" aria-hidden="true"></span>
   <a href="#/" data-tab="ricette">${icon.book}<span>Ricette</span></a>
   <a href="#/dispensa" data-tab="dispensa">${icon.basket}<span>Dispensa</span></a>
-  <a href="#/pasti" data-tab="pasti">${icon.meal}<span>Pasti</span></a>`;
+  <a href="#/pasti" data-tab="pasti">${icon.meal}<span>Pasti</span></a>
+  <a href="#/diario" data-tab="diario">${icon.calendar}<span>Diario</span></a>`;
 
 /** Evidenzia la sezione attiva (la "pillola" scivola sotto la voce); null nasconde il menu */
 function setTab(active) {
@@ -159,6 +170,42 @@ const missingBadges = (names) =>
 /** Riga piccola con i macro: "P 0,5 g · C 2,5 g · G 2,5 g · 31 kcal" */
 const macroLine = (m) =>
   `<span class="ml p">P ${fmt(m.protein)} gr</span> · <span class="ml c">C ${fmt(m.carbs)} gr</span> · <span class="ml f">G ${fmt(m.fat)} gr</span> · ${Math.round(m.kcal)} kcal`;
+
+/** Card con l'anello delle calorie e i tre macronutrienti (pasto, giornata del diario) */
+const nutritionCard = (nut, label) => {
+  const t = nut.total;
+  const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9;
+  const empty = !(kP + kC + kF); // niente segnato: anello grigio
+  const kTot = kP + kC + kF || 1;
+  const pct = (k) => Math.round((k / kTot) * 100);
+  return `
+    <div class="card glass">
+      <div class="nutrition">
+        <div class="ring ${empty ? 'empty' : ''}" style="--p:${(kP / kTot) * 100}%; --c:${((kP + kC) / kTot) * 100}%">
+          <div class="ring-inner"><strong>${Math.round(t.kcal)}</strong><span>kcal</span></div>
+        </div>
+        <div class="macros">
+          <p class="card-label">${label}</p>
+          ${[['p', 'Proteine', t.protein, kP], ['c', 'Carboidrati', t.carbs, kC], ['f', 'Grassi', t.fat, kF]]
+            .map(([k, name, g, kc]) => `
+            <div class="macro ${k}">
+              <span class="dot"></span><span class="macro-name">${name}</span>
+              <span class="macro-val">${fmt(g)} gr</span><span class="macro-pct">${pct(kc)}%</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      ${missingBadges(nut.missing)}
+    </div>`;
+};
+
+/** Icona piccola di un elemento (alimento, ricetta o pasto) */
+const itemAvatar = (it) => {
+  const r = it.recipeId && store.getRecipe(it.recipeId);
+  const m = it.mealId && store.getMeal(it.mealId);
+  const f = !r && !m && resolveFood(it);
+  if (r || m) return `<span class="ing-avatar">${avatar(r || m)}</span>`;
+  return f ? `<span class="ing-avatar">${foodAvatar(f)}</span>` : '<span class="ing-avatar blank"></span>';
+};
 
 // Nelle liste: valori totali della ricetta
 const recipeRow = (r) => {
@@ -1121,10 +1168,6 @@ function renderMeal(id) {
   });
 
   const nut = mealNutrition(m);
-  const t = nut.total;
-  const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9;
-  const kTot = kP + kC + kF || 1;
-  const pct = (k) => Math.round((k / kTot) * 100);
 
   $view.innerHTML = `
     <section class="page recipe">
@@ -1136,23 +1179,7 @@ function renderMeal(id) {
         </div>
       </div>
 
-      <div class="card glass">
-        <div class="nutrition">
-          <div class="ring" style="--p:${(kP / kTot) * 100}%; --c:${((kP + kC) / kTot) * 100}%">
-            <div class="ring-inner"><strong>${Math.round(t.kcal)}</strong><span>kcal</span></div>
-          </div>
-          <div class="macros">
-            <p class="card-label">Totale pasto</p>
-            ${[['p', 'Proteine', t.protein, kP], ['c', 'Carboidrati', t.carbs, kC], ['f', 'Grassi', t.fat, kF]]
-              .map(([k, label, g, kc]) => `
-              <div class="macro ${k}">
-                <span class="dot"></span><span class="macro-name">${label}</span>
-                <span class="macro-val">${fmt(g)} gr</span><span class="macro-pct">${pct(kc)}%</span>
-              </div>`).join('')}
-          </div>
-        </div>
-        ${missingBadges(nut.missing)}
-      </div>
+      ${nutritionCard(nut, 'Totale pasto')}
 
       <div class="card glass">
         <h2 class="card-title">Cosa c'è</h2>
@@ -1160,10 +1187,7 @@ function renderMeal(id) {
           ${m.items.length ? m.items.map((it, idx) => {
             const mm = nut.perItem[idx];
             const r = it.recipeId && store.getRecipe(it.recipeId);
-            const f = !r && resolveFood(it);
-            const av = r ? `<span class="ing-avatar">${avatar(r)}</span>`
-              : f ? `<span class="ing-avatar">${foodAvatar(f)}</span>`
-              : '<span class="ing-avatar blank"></span>';
+            const av = itemAvatar(it);
             const q = it.qty ? fmt(it.qty) : '';
             const name = r ? `<a class="meal-recipe-link" href="#/ricetta/${r.id}">${esc(r.name)}</a>` : esc(it.name);
             return `
@@ -1193,20 +1217,415 @@ function renderMeal(id) {
   };
 }
 
-// ---------- Editor del pasto ----------
-const mealItemRow = (it = {}) => `
+// =============================================================
+//  DIARIO — cosa hai mangiato, giorno per giorno (dati in diary.js)
+// =============================================================
+const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+
+/** "giovedì 19 novembre" */
+const longDate = (key) => diary.parseDay(key).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
+/** "Oggi", "Ieri", "Domani" oppure il giorno della settimana */
+const dayName = (key) => {
+  const today = diary.dayKey();
+  if (key === today) return 'Oggi';
+  if (key === diary.addDays(today, -1)) return 'Ieri';
+  if (key === diary.addDays(today, 1)) return 'Domani';
+  return null;
+};
+
+/** "17 – 23 novembre" oppure "28 ott – 3 nov" */
+const weekTitle = (monday) => {
+  const a = diary.parseDay(monday), b = diary.parseDay(diary.addDays(monday, 6));
+  const month = (d, style) => d.toLocaleDateString('it-IT', { month: style });
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()} – ${b.getDate()} ${month(b, 'long')}`
+    : `${a.getDate()} ${month(a, 'short')} – ${b.getDate()} ${month(b, 'short')}`;
+};
+
+/** Riga di un elemento mangiato: icona, nome, quantità e valori */
+const diaryItemRow = (it, mm) => `
+  <li class="${mm ? '' : 'compact'}">
+    <div class="ing-main">
+      <span class="ing-name">${itemAvatar(it)}${esc(it.name)}</span>
+      <span class="ing-qty">${it.qty ? fmt(it.qty) : ''} ${esc(it.unit || '')}</span>
+    </div>
+    ${mm ? `<div class="ing-macros">${macroLine(mm)}</div>`
+      : isNegligible(it) ? '' : '<div class="ing-macros"><span class="warn">Non conteggiato nei valori</span></div>'}
+  </li>`;
+
+function renderDiary(key = diary.dayKey()) {
+  setTab('diario');
+  setNav({ title: 'Diario' });
+  const today = diary.dayKey();
+  const monday = diary.weekStart(key);
+  const dayNut = mealNutrition({ items: diary.allItems(key) });
+  const label = dayName(key);
+
+  $view.innerHTML = `
+    <section class="page diary">
+      <h1 class="large-title">Diario</h1>
+
+      <!-- Settimana: pallino pieno = giorno con qualcosa segnato -->
+      <div class="week glass">
+        <div class="week-head">
+          <a class="week-nav" href="#/diario/${diary.addDays(key, -7)}" aria-label="Settimana precedente">${icon.chevronLeft}</a>
+          <span class="week-title">${weekTitle(monday)}</span>
+          <a class="week-nav" href="#/diario/${diary.addDays(key, 7)}" aria-label="Settimana successiva">${icon.chevron}</a>
+        </div>
+        <div class="week-days">
+          ${WEEKDAYS.map((w, i) => {
+            const d = diary.addDays(monday, i);
+            const cls = [d === key && 'selected', d === today && 'today'].filter(Boolean).join(' ');
+            return `
+              <a class="wd ${cls}" href="#/diario/${d}" aria-label="${longDate(d)}">
+                <span class="wd-name">${w}</span>
+                <span class="wd-num">${diary.parseDay(d).getDate()}</span>
+                <span class="wd-dot ${diary.hasEntries(d) ? 'full' : ''}"></span>
+              </a>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="day-head">
+        <h2 class="section-title">${label ? `${label} <small>${longDate(key)}</small>` : longDate(key)}</h2>
+        ${key !== today ? `<a class="today-btn" href="#/diario">Oggi</a>` : ''}
+      </div>
+
+      ${nutritionCard(dayNut, 'Totale del giorno')}
+
+      ${diary.SLOTS.map((slot) => {
+        const items = diary.itemsOf(key, slot.id);
+        const nut = mealNutrition({ items });
+        const quick = store.getMeals().filter((m) => m.moment === slot.meal && !items.some((it) => it.mealId === m.id));
+        return `
+          <div class="card glass slot">
+            <!-- Riepilogo del momento: nome, calorie e macronutrienti -->
+            <a class="slot-head ${items.length ? 'filled' : ''}" href="#/diario/${key}/${slot.id}">
+              <span class="slot-emoji">${slot.emoji}</span>
+              <span class="slot-text">
+                <span class="slot-title">${slot.label}</span>
+                ${items.length ? macroChips(nut.total) : ''}
+              </span>
+              ${items.length ? `<span class="slot-kcal"><strong>${Math.round(nut.total.kcal)}</strong> kcal</span>` : ''}
+            </a>
+            ${items.length ? `
+              <a class="slot-items" href="#/diario/${key}/${slot.id}">
+                <ul class="ingredients">${items.map((it, i) => diaryItemRow(it, nut.perItem[i])).join('')}</ul>
+              </a>` : ''}
+            ${quick.length ? `
+              <div class="quick-add">
+                ${quick.slice(0, 4).map((m) => `
+                  <button type="button" class="quick-meal" data-slot="${slot.id}" data-meal="${m.id}">
+                    ${icon.plus}<span class="ing-avatar">${avatar(m)}</span>${esc(m.name)}
+                  </button>`).join('')}
+              </div>` : ''}
+            <a class="btn ghost small slot-add" href="#/diario/${key}/${slot.id}">${items.length ? `${icon.edit} Modifica` : `${icon.plus} Aggiungi`}</a>
+          </div>`;
+      }).join('')}
+    </section>
+    <button class="fab" id="diary-add" aria-label="Aggiungi al diario">${icon.plus}</button>`;
+
+  // Aggiunta rapida di un pasto salvato (es. "La mia colazione")
+  $view.querySelectorAll('.quick-meal').forEach((b) => {
+    b.onclick = () => {
+      const m = store.getMeal(b.dataset.meal);
+      if (!m) return;
+      const it = { name: m.name, qty: 1, unit: 'porz.', mealId: m.id };
+      diary.saveSlot(key, b.dataset.slot, [...diary.itemsOf(key, b.dataset.slot), { ...it, snap: unitValues(it) }]);
+      toast(`${m.name} aggiunto a ${diary.slotInfo(b.dataset.slot).label.toLowerCase()}`);
+      // la pagina si ridisegna da sola (diary.onChange, in fondo al file)
+    };
+  });
+
+  // + in basso: scegli il momento della giornata
+  document.getElementById('diary-add').onclick = () =>
+    actionSheet(diary.SLOTS.map((slot) => ({ label: `${slot.emoji} ${slot.label}`, run: () => go(`#/diario/${key}/${slot.id}`) })));
+}
+
+/** Modifica di un momento della giornata (es. la colazione di oggi) */
+function renderDiarySlot(key, slotId) {
+  const slot = diary.slotInfo(slotId);
+  if (!slot) return go(`#/diario/${key}`, true);
+  let saving = false;
+  const back = `#/diario/${key}`;
+
+  setTab(null);
+  setNav({
+    title: slot.label,
+    back: { href: back, label: 'Diario' },
+    right: `<button class="nav-btn text strong" form="slot-form" type="submit">Salva</button>`,
+  });
+
+  $view.innerHTML = `
+    <section class="page">
+      <h1 class="large-title">${slot.emoji} ${slot.label}</h1>
+      <p class="subtitle">${dayName(key) ? `${dayName(key)}, ` : ''}${longDate(key)}</p>
+      <form id="slot-form" class="form" novalidate>
+        <div class="card glass">
+          <h2 class="card-title">Cosa hai mangiato</h2>
+          <p class="hint">Scrivi un alimento della dispensa (con la quantità), una ricetta o un pasto salvato (in porzioni).</p>
+          <div id="item-list"></div>
+          <button type="button" class="btn ghost small" id="add-item">${icon.plus} Aggiungi</button>
+        </div>
+
+        <div class="card glass">
+          <h2 class="card-title">Valori nutrizionali</h2>
+          <div id="slot-total"></div>
+        </div>
+
+        <button class="btn primary full" type="submit">Salva</button>
+      </form>
+    </section>`;
+
+  const editor = itemEditor({
+    list: document.getElementById('item-list'),
+    total: document.getElementById('slot-total'),
+    addBtn: document.getElementById('add-item'),
+    items: diary.itemsOf(key, slotId),
+    totalLabel: `Totale ${slot.label.toLowerCase()}`,
+    allowMeals: true,
+    placeholder: 'Alimento, ricetta o pasto',
+  });
+
+  document.getElementById('slot-form').onsubmit = (e) => {
+    e.preventDefault();
+    if (saving) return;
+    saving = true;
+    editor.setBusy(true);
+    diary.saveSlot(key, slotId, editor.items());
+    toast('Diario aggiornato');
+    go(back, true);
+  };
+}
+
+// =============================================================
+//  ELENCO DI ELEMENTI MODIFICABILE (editor dei pasti e del diario)
+// -------------------------------------------------------------
+//  Ogni riga: [qtà] [unità] [alimento, ricetta o pasto] [×]
+//  - mentre scrivi suggerisce alimenti della dispensa, ricette e
+//    (se allowMeals) pasti salvati
+//  - se scrivi un alimento che non c'è chiede se aggiungerlo alla dispensa;
+//    se rispondi di no resta "non conteggiato"
+//  - sotto ogni riga i valori calcolati, in fondo il totale
+// =============================================================
+const itemRow = (it = {}) => `
   <div class="ing-row" data-food-id="${esc(it.foodId || '')}" data-recipe-id="${esc(it.recipeId || '')}"
-       data-food-snap="${it.food ? esc(JSON.stringify(it.food)) : ''}">
+       data-meal-id="${esc(it.mealId || '')}" data-snap="${it.food || it.snap ? esc(JSON.stringify(it.food || it.snap)) : ''}">
     <div class="ing-fields">
       <input class="input qty" name="qty" inputmode="decimal" placeholder="1" value="${it.qty ?? ''}">
-      <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(it.name ? (it.unit || '') : 'gr', it.recipeId ? ['porz.'] : [])}</select>
-      <input class="input" name="ing" placeholder="Alimento o ricetta" value="${esc(it.name || '')}" autocomplete="off">
+      <select class="input unit" name="unit" aria-label="Unità di misura">${unitOptions(it.name ? (it.unit || '') : 'gr', it.recipeId || it.mealId ? ['porz.'] : [])}</select>
+      <input class="input" name="ing" placeholder="${it.placeholder || 'Alimento o ricetta'}" value="${esc(it.name || '')}" autocomplete="off">
       <button type="button" class="remove" aria-label="Rimuovi">${icon.x}</button>
     </div>
     <div class="suggest" hidden></div>
     <div class="ing-calc"></div>
   </div>`;
 
+const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * Collega a un contenitore l'elenco modificabile.
+ * Restituisce { items() → elementi compilati, setBusy(true) mentre si salva }
+ */
+function itemEditor({ list: $list, total: $total, addBtn, items, totalLabel = 'Totale', allowMeals = false, placeholder }) {
+  let busy = false;
+  const rowHtml = (it = {}) => itemRow({ placeholder, ...it });
+  $list.innerHTML = (items.length ? items : [{}]).map(rowHtml).join('');
+
+  const rows = () => [...$list.querySelectorAll('.ing-row')];
+  const readRow = (row) => {
+    const qtyRaw = row.querySelector('[name=qty]').value.trim();
+    const base = {
+      qty: qtyRaw ? num(qtyRaw) : null,
+      unit: row.querySelector('[name=unit]').value.trim(),
+      name: row.querySelector('[name=ing]').value.trim(),
+    };
+    let saved = null;
+    if (row.dataset.snap) { try { saved = JSON.parse(row.dataset.snap); } catch { /* ignora */ } }
+    // ricetta o pasto: si salva anche una copia dei valori di 1 porzione (vedi diary.js)
+    if (row.dataset.recipeId) {
+      const it = { ...base, recipeId: row.dataset.recipeId };
+      return { ...it, snap: unitValues({ ...it, snap: saved }) || undefined };
+    }
+    if (row.dataset.mealId) {
+      const it = { ...base, mealId: row.dataset.mealId };
+      return { ...it, snap: unitValues({ ...it, snap: saved }) || undefined };
+    }
+    const live = store.getFood(row.dataset.foodId);
+    const food = live ? foodSnapshot(live) : saved;
+    return { ...base, ...(food ? { foodId: row.dataset.foodId, food } : {}) };
+  };
+
+  // ---------- Collegamento di una riga ----------
+  const setUnitOptions = (row, isPortion) => {
+    const sel = row.querySelector('[name=unit]');
+    const value = isPortion ? 'porz.' : (sel.value === 'porz.' ? 'gr' : sel.value);
+    sel.innerHTML = unitOptions(value, isPortion ? ['porz.'] : []);
+  };
+  const clear = (row) => { row.dataset.foodId = ''; row.dataset.recipeId = ''; row.dataset.mealId = ''; row.dataset.snap = ''; };
+  const linkFood = (row, food, setUnit) => {
+    clear(row); row.dataset.foodId = food.id;
+    row.querySelector('[name=ing]').value = food.name;
+    setUnitOptions(row, false);
+    if (setUnit) row.querySelector('[name=unit]').value = food.basis === 'pz' ? 'pz' : 'gr';
+  };
+  const linkPortion = (row, key, item) => { // ricetta o pasto, contati a porzioni
+    clear(row); row.dataset[key] = item.id;
+    row.querySelector('[name=ing]').value = item.name;
+    setUnitOptions(row, true);
+    const qty = row.querySelector('[name=qty]');
+    if (!qty.value) qty.value = '1';
+  };
+  const unlink = (row) => {
+    const wasPortion = !!(row.dataset.recipeId || row.dataset.mealId);
+    clear(row);
+    if (wasPortion) setUnitOptions(row, false);
+  };
+  // stesso nome di qualcosa che esiste già: si collega da solo
+  const autoLink = (row, name) => {
+    const food = store.findFoodByName(name);
+    const recipe = !food && store.getRecipes().find((r) => sameName(r.name, name));
+    const meal = allowMeals && !food && !recipe && store.getMeals().find((m) => sameName(m.name, name));
+    if (food) linkFood(row, food, false);
+    else if (recipe) linkPortion(row, 'recipeId', recipe);
+    else if (meal) linkPortion(row, 'mealId', meal);
+    else unlink(row);
+  };
+
+  // ---------- Valori calcolati ----------
+  const updateCalc = () => {
+    const its = rows().map(readRow);
+    const nut = mealNutrition({ items: its });
+    rows().forEach((row, idx) => {
+      const mm = nut.perItem[idx];
+      const it = its[idx];
+      const tag = it.recipeId ? '<span class="tag-recipe">Ricetta</span> ' : it.mealId ? '<span class="tag-recipe">Pasto</span> ' : '';
+      const $calc = row.querySelector('.ing-calc');
+      if (mm) $calc.innerHTML = tag + macroLine(mm);
+      else if (isNegligible(it)) $calc.innerHTML = it.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
+      else if (it.food && it.qty == null) $calc.innerHTML = '<span class="muted">Dalla dispensa · inserisci la quantità</span>';
+      else if (it.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${it.food.basis === 'pz' ? 'pz' : 'gr o ml'}</span>`;
+      else if (it.name) $calc.innerHTML = `
+          <span class="${row.dataset.declined ? 'warn' : 'muted'}">${row.dataset.declined ? 'Non conteggiato nei valori' : 'Non in dispensa'}</span>
+          ${canEdit() ? `<button type="button" class="add-pantry" data-add-food>${icon.plus} Aggiungi alla dispensa</button>` : ''}`;
+      else $calc.innerHTML = '';
+    });
+    const t = nut.total;
+    $total.innerHTML = `
+      <div class="auto-total">
+        <span class="at-label">${totalLabel}</span>
+        <span class="at-kcal">${Math.round(t.kcal)} <small>kcal</small></span>
+        <span class="at-macros">${macroLine({ ...t, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
+      </div>
+      ${missingBadges(nut.missing)}`;
+  };
+
+  // ---------- Suggerimenti mentre scrivi ----------
+  const suggestion = (attr, id, av, name, detail) => `
+    <button type="button" data-${attr}="${id}">
+      <span class="sg-name"><span class="ing-avatar">${av}</span>${esc(name)}</span><small>${detail}</small>
+    </button>`;
+  const showSuggest = (row) => {
+    const box = row.querySelector('.suggest');
+    const q = row.querySelector('[name=ing]').value.trim().toLowerCase();
+    const match = (x) => x.name.toLowerCase().includes(q);
+    const foods = store.getPantry().filter((f) => match(f) && f.id !== row.dataset.foodId).slice(0, 5);
+    const recs = store.getRecipes().filter((r) => match(r) && r.id !== row.dataset.recipeId).slice(0, 3);
+    const meals = allowMeals ? store.getMeals().filter((m) => match(m) && m.id !== row.dataset.mealId).slice(0, 3) : [];
+    box.hidden = !foods.length && !recs.length && !meals.length;
+    box.innerHTML =
+      meals.map((m) => suggestion('meal', m.id, avatar(m), m.name, `pasto · ${Math.round(mealNutrition(m).total.kcal)} kcal`)).join('') +
+      foods.map((f) => suggestion('food', f.id, foodAvatar(f), f.name, `${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal`)).join('') +
+      recs.map((r) => suggestion('recipe', r.id, avatar(r), r.name, `ricetta · ${Math.round(recipeNutrition(r).perServing.kcal)} kcal a porz.`)).join('');
+  };
+
+  // ---------- Alimento che non è in dispensa ----------
+  const openAddFood = (row, onCancel) => {
+    foodSheet(null, {
+      name: row.querySelector('[name=ing]').value.trim(),
+      onSaved: (food, { existing } = {}) => {
+        linkFood(row, food, true);
+        updateCalc();
+        toast(existing ? `${food.name} era già nella dispensa: collegato` : `${food.name} aggiunto alla dispensa`);
+      },
+      onCancel,
+    });
+  };
+  const askToAdd = async (row) => {
+    const name = row.querySelector('[name=ing]').value.trim();
+    const linked = row.dataset.foodId || row.dataset.recipeId || row.dataset.mealId;
+    if (!name || linked || row.dataset.declined === name || busy) return;
+    if (isNegligible(readRow(row)) || !document.body.contains(row)) return;
+    const decline = () => { row.dataset.declined = name; updateCalc(); };
+    if (!canEdit()) return decline(); // in sola lettura la dispensa non si può modificare
+    const yes = await confirmSheet(
+      `“${name}” non è nella dispensa. Vuoi aggiungerlo con i suoi valori nutrizionali?`,
+      { title: 'Nuovo alimento', okText: 'Sì, aggiungilo', cancelText: 'No, inseriscilo senza valori' }
+    );
+    if (!document.body.contains(row)) return;
+    if (!yes) return decline();
+    openAddFood(row, decline);
+  };
+
+  // ---------- Eventi ----------
+  $list.addEventListener('input', (e) => {
+    const row = e.target.closest('.ing-row');
+    if (!row) return;
+    if (e.target.name === 'ing') { autoLink(row, e.target.value); showSuggest(row); }
+    updateCalc();
+  });
+  $list.addEventListener('change', (e) => {
+    if (e.target.name === 'unit') updateCalc();
+    // piccola attesa: se hai toccato un suggerimento o "Salva", non serve chiedere
+    if (e.target.name === 'ing') { const row = e.target.closest('.ing-row'); setTimeout(() => askToAdd(row), 250); }
+  });
+  $list.addEventListener('focusin', (e) => { if (e.target.name === 'ing') showSuggest(e.target.closest('.ing-row')); });
+  $list.addEventListener('focusout', (e) => {
+    if (e.target.name === 'ing') {
+      const box = e.target.closest('.ing-row').querySelector('.suggest');
+      setTimeout(() => (box.hidden = true), 150);
+    }
+  });
+  // pointerdown + preventDefault: il tocco sul suggerimento non chiude la tastiera prima del tempo
+  $list.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.suggest [data-food], .suggest [data-recipe], .suggest [data-meal]');
+    if (!btn) return;
+    e.preventDefault();
+    const row = btn.closest('.ing-row');
+    if (btn.dataset.food) linkFood(row, store.getFood(btn.dataset.food), true);
+    else if (btn.dataset.recipe) linkPortion(row, 'recipeId', store.getRecipe(btn.dataset.recipe));
+    else linkPortion(row, 'mealId', store.getMeal(btn.dataset.meal));
+    row.querySelector('.suggest').hidden = true;
+    updateCalc();
+    const qty = row.querySelector('[name=qty]');
+    if (!qty.value) qty.focus();
+  });
+  $list.addEventListener('click', (e) => {
+    const add = e.target.closest('[data-add-food]');
+    if (add) openAddFood(add.closest('.ing-row'));
+    const rm = e.target.closest('.remove');
+    if (rm) { rm.closest('.ing-row').remove(); updateCalc(); }
+  });
+  addBtn.onclick = () => {
+    $list.insertAdjacentHTML('beforeend', rowHtml());
+    $list.lastElementChild.querySelector('[name=qty]').focus();
+  };
+
+  // All'apertura collego gli elementi aggiunti in dispensa nel frattempo
+  rows().forEach((row) => {
+    const linked = row.dataset.foodId || row.dataset.recipeId || row.dataset.mealId;
+    if (!linked) autoLink(row, row.querySelector('[name=ing]').value);
+  });
+  updateCalc();
+
+  return {
+    items: () => rows().map(readRow).filter((it) => it.name),
+    setBusy: (v) => { busy = v; },
+  };
+}
+
+// ---------- Editor del pasto ----------
 function renderMealEditor(id, presetMoment) {
   const editing = id ? store.getMeal(id) : null;
   if (id && !editing) return go('#/pasti', true);
@@ -1239,7 +1658,7 @@ function renderMealEditor(id, presetMoment) {
         <div class="card glass">
           <h2 class="card-title">Cosa mangi</h2>
           <p class="hint">Scrivi un alimento della dispensa (con la quantità) oppure una delle tue ricette (in porzioni).</p>
-          <div id="item-list">${m.items.map(mealItemRow).join('')}</div>
+          <div id="item-list"></div>
           <button type="button" class="btn ghost small" id="add-item">${icon.plus} Aggiungi</button>
         </div>
 
@@ -1258,9 +1677,14 @@ function renderMealEditor(id, presetMoment) {
     </section>`;
 
   const form = document.getElementById('meal-form');
-  const $list = document.getElementById('item-list');
-  const $total = document.getElementById('meal-total');
   const picker = iconPicker(document.getElementById('meal-icon'), { emoji: m.emoji || '🥣', photo: editing?.photo, picks: MEAL_PICKS });
+  const editor = itemEditor({
+    list: document.getElementById('item-list'),
+    total: document.getElementById('meal-total'),
+    addBtn: document.getElementById('add-item'),
+    items: m.items,
+    totalLabel: 'Totale pasto',
+  });
 
   form.querySelectorAll('[data-moment]').forEach((b) =>
     b.addEventListener('click', () => {
@@ -1269,191 +1693,17 @@ function renderMealEditor(id, presetMoment) {
     })
   );
 
-  const rows = () => [...$list.querySelectorAll('.ing-row')];
-  const readRow = (row) => {
-    const qtyRaw = row.querySelector('[name=qty]').value.trim();
-    const base = {
-      qty: qtyRaw ? num(qtyRaw) : null,
-      unit: row.querySelector('[name=unit]').value.trim(),
-      name: row.querySelector('[name=ing]').value.trim(),
-    };
-    const recipe = store.getRecipe(row.dataset.recipeId);
-    if (recipe) return { ...base, recipeId: recipe.id };
-    const live = store.getFood(row.dataset.foodId);
-    let food;
-    if (live) food = foodSnapshot(live);
-    else if (row.dataset.foodSnap) { try { food = JSON.parse(row.dataset.foodSnap); } catch { /* ignora */ } }
-    return { ...base, ...(food ? { foodId: row.dataset.foodId, food } : {}) };
-  };
-
-  const setUnitOptions = (row, isRecipe) => {
-    const sel = row.querySelector('[name=unit]');
-    const value = isRecipe ? 'porz.' : (sel.value === 'porz.' ? 'gr' : sel.value);
-    sel.innerHTML = unitOptions(value, isRecipe ? ['porz.'] : []);
-  };
-  const linkFood = (row, food, setUnit) => {
-    row.dataset.foodId = food.id; row.dataset.recipeId = ''; row.dataset.foodSnap = '';
-    row.querySelector('[name=ing]').value = food.name;
-    setUnitOptions(row, false);
-    if (setUnit) row.querySelector('[name=unit]').value = food.basis === 'pz' ? 'pz' : 'gr';
-  };
-  const linkRecipe = (row, recipe) => {
-    row.dataset.recipeId = recipe.id; row.dataset.foodId = ''; row.dataset.foodSnap = '';
-    row.querySelector('[name=ing]').value = recipe.name;
-    setUnitOptions(row, true);
-    const qty = row.querySelector('[name=qty]');
-    if (!qty.value) qty.value = '1';
-  };
-  const unlink = (row) => {
-    const wasRecipe = !!row.dataset.recipeId;
-    row.dataset.foodId = ''; row.dataset.recipeId = ''; row.dataset.foodSnap = '';
-    if (wasRecipe) setUnitOptions(row, false);
-  };
-  const findRecipeByName = (name) => {
-    const n = name.trim().toLowerCase();
-    return n ? store.getRecipes().find((r) => r.name.trim().toLowerCase() === n) : null;
-  };
-
-  const updateCalc = () => {
-    const items = rows().map(readRow);
-    const nut = mealNutrition({ items });
-    rows().forEach((row, idx) => {
-      const mm = nut.perItem[idx];
-      const it = items[idx];
-      const $calc = row.querySelector('.ing-calc');
-      if (mm) $calc.innerHTML = `${it.recipeId ? '<span class="tag-recipe">Ricetta</span> ' : ''}${macroLine(mm)}`;
-      else if (isNegligible(it)) $calc.innerHTML = it.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
-      else if (it.food && it.qty == null) $calc.innerHTML = '<span class="muted">Dalla dispensa · inserisci la quantità</span>';
-      else if (it.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${it.food.basis === 'pz' ? 'pz' : 'gr o ml'}</span>`;
-      else if (it.name) $calc.innerHTML = `
-          <span class="${row.dataset.declined ? 'warn' : 'muted'}">${row.dataset.declined ? 'Non conteggiato nei valori' : 'Non in dispensa'}</span>
-          <button type="button" class="add-pantry" data-add-food>${icon.plus} Aggiungi alla dispensa</button>`;
-      else $calc.innerHTML = '';
-    });
-    const t = nut.total;
-    $total.innerHTML = `
-      <div class="auto-total">
-        <span class="at-label">Totale pasto</span>
-        <span class="at-kcal">${Math.round(t.kcal)} <small>kcal</small></span>
-        <span class="at-macros">${macroLine({ ...t, kcal: 0 }).replace(/ · 0 kcal$/, '')}</span>
-      </div>
-      ${missingBadges(nut.missing)}`;
-    return nut;
-  };
-
-  // Suggerimenti: alimenti della dispensa e ricette
-  const showSuggest = (row) => {
-    const box = row.querySelector('.suggest');
-    const q = row.querySelector('[name=ing]').value.trim().toLowerCase();
-    const foods = store.getPantry().filter((f) => f.name.toLowerCase().includes(q) && f.id !== row.dataset.foodId).slice(0, 5);
-    const recs = store.getRecipes().filter((r) => r.name.toLowerCase().includes(q) && r.id !== row.dataset.recipeId).slice(0, 3);
-    box.hidden = !foods.length && !recs.length;
-    box.innerHTML =
-      foods.map((f) => `
-        <button type="button" data-food="${f.id}">
-          <span class="sg-name"><span class="ing-avatar">${foodAvatar(f)}</span>${esc(f.name)}</span><small>${basisLabel(f)} · ${Math.round(foodKcal(f))} kcal</small>
-        </button>`).join('') +
-      recs.map((r) => `
-        <button type="button" data-recipe="${r.id}">
-          <span class="sg-name"><span class="ing-avatar">${avatar(r)}</span>${esc(r.name)}</span><small>ricetta · ${Math.round(recipeNutrition(r).perServing.kcal)} kcal a porz.</small>
-        </button>`).join('');
-  };
-
-  $list.addEventListener('input', (e) => {
-    const row = e.target.closest('.ing-row');
-    if (!row) return;
-    if (e.target.name === 'ing') {
-      const food = store.findFoodByName(e.target.value);
-      const recipe = !food && findRecipeByName(e.target.value);
-      if (food) linkFood(row, food, false);
-      else if (recipe) linkRecipe(row, recipe);
-      else unlink(row);
-      showSuggest(row);
-    }
-    updateCalc();
-  });
-  // Alimento sconosciuto: pop-up automatico per aggiungerlo alla dispensa (come nelle ricette)
-  const openAddFood = (row, onCancel) => {
-    foodSheet(null, {
-      name: row.querySelector('[name=ing]').value.trim(),
-      onSaved: (food, { existing } = {}) => {
-        linkFood(row, food, true);
-        updateCalc();
-        toast(existing ? `${food.name} era già nella dispensa: collegato` : `${food.name} aggiunto alla dispensa`);
-      },
-      onCancel,
-    });
-  };
-  const askToAdd = async (row) => {
-    const name = row.querySelector('[name=ing]').value.trim();
-    if (!name || row.dataset.foodId || row.dataset.recipeId || row.dataset.declined === name || submitting) return;
-    if (isNegligible(readRow(row)) || !document.body.contains(row)) return;
-    const yes = await confirmSheet(
-      `“${name}” non è nella dispensa. Vuoi aggiungerlo con i suoi valori nutrizionali?`,
-      { title: 'Nuovo alimento', okText: 'Sì, aggiungilo', cancelText: 'No, inseriscilo senza valori' }
-    );
-    if (!document.body.contains(row)) return;
-    const decline = () => { row.dataset.declined = name; updateCalc(); };
-    if (!yes) return decline();
-    openAddFood(row, decline);
-  };
-
-  $list.addEventListener('change', (e) => {
-    if (e.target.name === 'unit') updateCalc();
-    // piccola attesa: se hai toccato un suggerimento o "Salva", non serve chiedere
-    if (e.target.name === 'ing') { const row = e.target.closest('.ing-row'); setTimeout(() => askToAdd(row), 250); }
-  });
-  $list.addEventListener('focusin', (e) => { if (e.target.name === 'ing') showSuggest(e.target.closest('.ing-row')); });
-  $list.addEventListener('focusout', (e) => {
-    if (e.target.name === 'ing') {
-      const box = e.target.closest('.ing-row').querySelector('.suggest');
-      setTimeout(() => (box.hidden = true), 150);
-    }
-  });
-  $list.addEventListener('pointerdown', (e) => {
-    const btn = e.target.closest('.suggest [data-food], .suggest [data-recipe]');
-    if (!btn) return;
-    e.preventDefault();
-    const row = btn.closest('.ing-row');
-    if (btn.dataset.food) linkFood(row, store.getFood(btn.dataset.food), true);
-    else linkRecipe(row, store.getRecipe(btn.dataset.recipe));
-    row.querySelector('.suggest').hidden = true;
-    updateCalc();
-    const qty = row.querySelector('[name=qty]');
-    if (!qty.value) qty.focus();
-  });
-  $list.addEventListener('click', (e) => {
-    const add = e.target.closest('[data-add-food]');
-    if (add) {
-      openAddFood(add.closest('.ing-row'));
-    }
-    const rm = e.target.closest('.remove');
-    if (rm) { rm.closest('.ing-row').remove(); updateCalc(); }
-  });
-
-  // All'apertura collego gli elementi aggiunti in dispensa nel frattempo
-  rows().forEach((row) => {
-    if (row.dataset.foodId || row.dataset.recipeId) return;
-    const food = store.findFoodByName(row.querySelector('[name=ing]').value);
-    if (food) linkFood(row, food, false);
-  });
-  updateCalc();
-
-  document.getElementById('add-item').onclick = () => {
-    $list.insertAdjacentHTML('beforeend', mealItemRow());
-    $list.lastElementChild.querySelector('[name=qty]').focus();
-  };
-
   form.onsubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
     const name = form.name.value.trim();
     if (!name) { form.name.focus(); return toast('Dai un nome al pasto'); }
     submitting = true;
+    editor.setBusy(true);
     const { emoji, photo } = await picker.commit();
     const savedId = store.saveMeal({
       id: editing?.id, name, emoji, photo, moment,
-      items: rows().map(readRow).filter((it) => it.name),
+      items: editor.items(),
       notes: form.notes.value.trim(),
     });
     toast(editing ? 'Modifiche salvate' : 'Pasto salvato');
@@ -1566,6 +1816,7 @@ async function startCloud() {
     try {
       const { joined } = await cloud.loadBooks();
       await cloud.openBook(cloud.pickBook(joined));
+      diary.connect(cloud.user); // il diario è personale: si sincronizza a parte
       if (joined) toast(`Ti hanno condiviso il ricettario “${cloud.book.name}”`);
       return;
     } catch (e) {
@@ -1582,6 +1833,9 @@ function hideSplash() {
   $splash.classList.add('hide');
   setTimeout(() => $splash.remove(), 400);
 }
+
+// Il diario è cambiato da un altro dispositivo: ridisegno la pagina del diario
+diary.onChange(() => { if (DIARY_DAY.test(location.hash) && !document.querySelector('#modal-root .sheet')) router({ soft: true }); });
 
 // ---------- Avvio ----------
 await initImages(); // carica le foto prima di disegnare

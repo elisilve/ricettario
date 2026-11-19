@@ -1,0 +1,248 @@
+@use '../abstracts' as *;
+
+// =============================================================
+//  Diario: settimana in alto, totale del giorno, momenti
+// -------------------------------------------------------------
+//  [ ‹   17 – 23 novembre   › ]
+//  [ L  M  M  G  V  S  D ]   ← numero del giorno
+//  [ ○  ●  ○  ◉  ○  ○  ○ ]   ← pallino pieno = qualcosa segnato
+//  Il giorno scelto ha il cerchio colorato; oggi ha il numero colorato.
+// =============================================================
+
+// ---------- Settimana ----------
+.week {
+  border-radius: var(--radius);
+  padding: 10px 8px 6px;
+}
+
+.week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 4px;
+}
+
+.week-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+// Frecce per la settimana prima / dopo
+.week-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  @include center-grid;
+  color: var(--accent);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:active { background: var(--input-bg); }
+}
+
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+// Un giorno: lettera, numero, pallino
+.wd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 8px;
+
+  &:active .wd-num { transform: scale(.9); }
+
+  // oggi: lettera e numero colorati
+  &.today {
+    .wd-name,
+    .wd-num { color: var(--accent); }
+  }
+
+  // giorno scelto: cerchio pieno
+  &.selected .wd-num {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(15, 157, 138, .35);
+  }
+}
+
+.wd-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.wd-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  @include center-grid;
+  font-size: 17px;
+  font-weight: 600;
+  @include tabular;
+  transition: transform .15s, background .2s, color .2s;
+}
+
+// Pallino vuoto = niente segnato · pieno = qualcosa segnato
+.wd-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-3);
+
+  &.full {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+// ---------- Titolo del giorno ("Oggi giovedì 19 novembre") ----------
+.day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  .section-title small {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin-left: 4px;
+  }
+}
+
+.today-btn {
+  @include soft-pill;
+  flex-shrink: 0;
+  margin-top: 14px;
+  padding: 5px 12px;
+  font-size: 14px;
+
+  &:active { opacity: .6; }
+}
+
+// ---------- Un momento della giornata (Colazione, Pranzo…) ----------
+// In alto un riquadro di riepilogo (nome, calorie, macro), sotto gli alimenti
+.slot-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  // con qualcosa segnato diventa un riquadro colorato che risalta sugli alimenti
+  &.filled {
+    margin: -6px -6px 0;
+    padding: 10px 14px 10px 10px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--accent) 7%, transparent); // verde acqua appena accennato
+  }
+}
+
+.slot-emoji {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  @include center-grid;
+  font-size: 20px;
+
+  .filled & { background: var(--glass-strong); }
+}
+
+.slot-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  .chips { margin-top: 3px; }
+}
+
+.slot-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.slot-kcal {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-align: right;
+
+  strong {
+    display: block;
+    font-size: 22px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--text);
+    @include tabular;
+  }
+}
+
+// Elenco di quello che hai mangiato (toccandolo si modifica)
+.slot-items {
+  display: block;
+  margin-top: 6px;
+
+  .warn { color: var(--danger); }
+}
+
+// Aggiunta rapida dei pasti salvati per quel momento
+.quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.quick-meal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 12px 4px 6px;
+  border-radius: 99px;
+  background: var(--input-bg);
+  font-size: 14px;
+  font-weight: 600;
+
+  > svg {
+    width: 15px;
+    height: 15px;
+    color: var(--accent);
+    stroke-width: 2.6;
+  }
+
+  .ing-avatar {
+    width: 22px;
+    height: 22px;
+    margin-right: 2px;
+    border-radius: 50%;
+    font-size: 13px;
+  }
+
+  &:active { opacity: .6; }
+}
+
+.slot .slot-add {
+  margin-top: 14px; // (scritto ".slot .slot-add" per vincere sul margine di .btn.small)
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+// Più aria fra l'ultimo alimento e il pulsante Modifica
+.slot .slot-items + .slot-add {
+  margin-top: 22px;
+}

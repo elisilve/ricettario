@@ -35,6 +35,9 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 export const isNetworkError = (e) =>
   !navigator.onLine || /fetch|network|load failed|timeout|offline/i.test(String(e?.message || e));
 
+/** Il client di Supabase (per i moduli che hanno tabelle loro, es. diary.js) */
+export const client = () => sb;
+
 const check = ({ data, error }) => {
   if (error) throw error;
   return data;
@@ -93,9 +96,10 @@ export async function changePassword(current, next) {
 
 export async function signOut() {
   stopRealtime();
-  // via le copie locali dei ricettari (restano sul server)
+  // via le copie locali dei ricettari e del diario (restano sul server)
   Object.keys(localStorage)
-    .filter((k) => k.startsWith('ricettario:book:') || k.startsWith('ricettario:queue:') || k.startsWith('ricettario:books:'))
+    .filter((k) => ['ricettario:book:', 'ricettario:queue:', 'ricettario:books:', 'ricettario:diary:', 'ricettario:diary-queue:']
+      .some((prefix) => k.startsWith(prefix)))
     .forEach((k) => localStorage.removeItem(k));
   try { await sb.auth.signOut(); } catch { /* offline: la sessione locale viene comunque rimossa */ }
   user = null; book = null; books = [];
