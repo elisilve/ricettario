@@ -1300,7 +1300,8 @@ function renderMealEditor(id, presetMoment) {
       else if (isNegligible(it)) $calc.innerHTML = it.name ? '<span class="muted">Quantità trascurabile, non conteggiata</span>' : '';
       else if (it.food && it.qty == null) $calc.innerHTML = '<span class="muted">Dalla dispensa · inserisci la quantità</span>';
       else if (it.food) $calc.innerHTML = `<span class="warn">Unità non calcolabile: usa ${it.food.basis === 'pz' ? 'pz' : 'gr o ml'}</span>`;
-      else if (it.name) $calc.innerHTML = `<span class="muted">Non in dispensa</span>
+      else if (it.name) $calc.innerHTML = `
+          <span class="${row.dataset.declined ? 'warn' : 'muted'}">${row.dataset.declined ? 'Non conteggiato nei valori' : 'Non in dispensa'}</span>
           <button type="button" class="add-pantry" data-add-food>${icon.plus} Aggiungi alla dispensa</button>`;
       else $calc.innerHTML = '';
     });
@@ -1346,7 +1347,37 @@ function renderMealEditor(id, presetMoment) {
     }
     updateCalc();
   });
-  $list.addEventListener('change', (e) => { if (e.target.name === 'unit') updateCalc(); });
+  // Alimento sconosciuto: pop-up automatico per aggiungerlo alla dispensa (come nelle ricette)
+  const openAddFood = (row, onCancel) => {
+    foodSheet(null, {
+      name: row.querySelector('[name=ing]').value.trim(),
+      onSaved: (food, { existing } = {}) => {
+        linkFood(row, food, true);
+        updateCalc();
+        toast(existing ? `${food.name} era già nella dispensa: collegato` : `${food.name} aggiunto alla dispensa`);
+      },
+      onCancel,
+    });
+  };
+  const askToAdd = async (row) => {
+    const name = row.querySelector('[name=ing]').value.trim();
+    if (!name || row.dataset.foodId || row.dataset.recipeId || row.dataset.declined === name || submitting) return;
+    if (isNegligible(readRow(row)) || !document.body.contains(row)) return;
+    const yes = await confirmSheet(
+      `“${name}” non è nella dispensa. Vuoi aggiungerlo con i suoi valori nutrizionali?`,
+      { title: 'Nuovo alimento', okText: 'Sì, aggiungilo', cancelText: 'No, inseriscilo senza valori' }
+    );
+    if (!document.body.contains(row)) return;
+    const decline = () => { row.dataset.declined = name; updateCalc(); };
+    if (!yes) return decline();
+    openAddFood(row, decline);
+  };
+
+  $list.addEventListener('change', (e) => {
+    if (e.target.name === 'unit') updateCalc();
+    // piccola attesa: se hai toccato un suggerimento o "Salva", non serve chiedere
+    if (e.target.name === 'ing') { const row = e.target.closest('.ing-row'); setTimeout(() => askToAdd(row), 250); }
+  });
   $list.addEventListener('focusin', (e) => { if (e.target.name === 'ing') showSuggest(e.target.closest('.ing-row')); });
   $list.addEventListener('focusout', (e) => {
     if (e.target.name === 'ing') {
@@ -1369,15 +1400,7 @@ function renderMealEditor(id, presetMoment) {
   $list.addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-food]');
     if (add) {
-      const row = add.closest('.ing-row');
-      foodSheet(null, {
-        name: row.querySelector('[name=ing]').value.trim(),
-        onSaved: (food, { existing } = {}) => {
-          linkFood(row, food, true);
-          updateCalc();
-          toast(existing ? `${food.name} era già nella dispensa: collegato` : `${food.name} aggiunto alla dispensa`);
-        },
-      });
+      openAddFood(add.closest('.ing-row'));
     }
     const rm = e.target.closest('.remove');
     if (rm) { rm.closest('.ing-row').remove(); updateCalc(); }
