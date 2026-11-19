@@ -138,7 +138,13 @@ svg { flex-shrink: 0; }
   padding: calc(62px + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
   max-width: 680px; margin: 0 auto;
 }
-.view.enter { animation: enter .32s cubic-bezier(.2, .8, .2, 1); }
+/* Le animazioni muovono il contenuto della pagina, non la pagina intera:
+   così il pulsante + (fisso in basso) non si sposta */
+.view.enter > section { animation: enter .32s cubic-bezier(.2, .8, .2, 1); }
+.view.enter-right > section { animation: enter-right .42s cubic-bezier(.32, .72, 0, 1); }
+.view.enter-left > section { animation: enter-left .42s cubic-bezier(.32, .72, 0, 1); }
+@keyframes enter-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes enter-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
 @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .large-title {
@@ -236,14 +242,15 @@ svg { flex-shrink: 0; }
 .fab {
   position: fixed; z-index: 15;
   right: max(20px, calc(50vw - 320px));
-  bottom: calc(24px + var(--safe-bottom));
-  width: 60px; height: 60px; border-radius: 50%;
+  bottom: calc(34px + var(--safe-bottom)); /* centrato rispetto alla barra (60px) */
+  width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--accent); color: #fff;
-  box-shadow: 0 10px 28px rgba(15, 157, 138, .42), inset 0 1px 0 rgba(255, 255, 255, .35);
+  box-shadow: 0 6px 16px rgba(15, 157, 138, .4), inset 0 1px 0 rgba(255, 255, 255, .35);
   transition: transform .15s;
 }
-.fab svg { width: 28px; height: 28px; stroke-width: 2.4; }
+.fab svg { width: 20px; height: 20px; stroke-width: 2.6; }
+.fab::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; } /* area di tocco 48px */
 .fab:active { transform: scale(.92); }
 
 /* ---------- Dettaglio ricetta ---------- */
@@ -457,7 +464,8 @@ select.input {
    Menu in basso (Ricette / Dispensa)
    ============================================================= */
 .tabbar {
-  position: fixed; z-index: 15; left: 50%; transform: translateX(-50%);
+  /* allineato a sinistra: a destra c'è il pulsante + (come nelle app iOS) */
+  position: fixed; z-index: 15; left: max(16px, calc(50vw - 324px));
   bottom: calc(24px + var(--safe-bottom));
   display: flex; gap: 4px; height: 60px; padding: 5px; border-radius: 30px;
 }
@@ -468,7 +476,18 @@ select.input {
   transition: background .2s, color .2s;
 }
 .tabbar a svg { width: 22px; height: 22px; }
-.tabbar a.active { color: var(--accent); background: var(--accent-soft); }
+.tabbar a.active { color: var(--accent); }
+.tabbar a { position: relative; z-index: 1; }
+/* La "pillola" sotto la voce attiva: scivola da una voce all'altra */
+.tab-pill {
+  position: absolute; top: 5px; bottom: 5px; left: 5px; width: 86px; border-radius: 25px;
+  background: var(--accent-soft);
+  transform: translateX(calc(var(--i, 0) * (86px + 4px)));
+  transition: transform .45s cubic-bezier(.32, .72, 0, 1);
+}
+.tabbar a svg { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.tabbar a.active svg { transform: scale(1.08); }
+.tabbar a:active svg { transform: scale(.88); }
 body.no-tabbar .tabbar { display: none; }
 
 /* =============================================================
@@ -701,3 +720,12 @@ body.auth-open .navbar, body.auth-open .tabbar, body.auth-open .view { visibilit
 .sheet.full { top: calc(var(--safe-top) + 12px); max-height: none; }
 /* Con un pop-up aperto il + non si intravede in trasparenza */
 html.sheet-open .fab, html.sheet-open .tabbar { opacity: 0; pointer-events: none; transition: opacity .2s; }
+
+/* Pasti */
+.segmented.moments { grid-template-columns: repeat(4, 1fr); }
+.segmented.moments button { font-size: 13.5px; }
+.tag-recipe {
+  display: inline-block; padding: 1px 7px; margin-right: 4px; border-radius: 99px;
+  font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+}
+.meal-recipe-link { color: var(--accent); }

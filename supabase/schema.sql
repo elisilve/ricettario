@@ -10,7 +10,7 @@
 --                owner (proprietario) · editor (vede e modifica) · viewer (solo vede)
 --   • invites  = inviti in attesa, per email: quando la persona invitata accede
 --                con quella email entra nel ricettario con il ruolo scelto
---   • items    = categorie, ricette e alimenti della dispensa (salvati come JSON,
+--   • items    = categorie, ricette, alimenti della dispensa e pasti (salvati come JSON,
 --                con la stessa forma che usa l'app)
 --   • foto     = nello Storage, bucket "photos", cartella = id del ricettario
 --
@@ -48,13 +48,18 @@ create table if not exists public.invites (
 
 create table if not exists public.items (
   book_id     uuid not null references public.books (id) on delete cascade,
-  kind        text not null check (kind in ('category', 'recipe', 'food')),
+  kind        text not null check (kind in ('category', 'recipe', 'food', 'meal')),
   id          text not null,
   data        jsonb not null,
   updated_at  timestamptz not null default now(),
   updated_by  uuid default auth.uid(),
   primary key (book_id, kind, id)
 );
+
+
+-- Aggiornamento per chi aveva già creato le tabelle: ora ci sono anche i pasti ('meal')
+alter table public.items drop constraint if exists items_kind_check;
+alter table public.items add constraint items_kind_check check (kind in ('category', 'recipe', 'food', 'meal'));
 
 
 -- ---------- Funzioni di supporto per i permessi ----------

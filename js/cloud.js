@@ -22,8 +22,8 @@ export let user = null;
 export let books = []; // [{ id, name, role, ownerId }]
 export let book = null; // ricettario aperto
 
-const KIND_OF = { categories: 'category', recipes: 'recipe', pantry: 'food' };
-const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry' };
+const KIND_OF = { categories: 'category', recipes: 'recipe', pantry: 'food', meals: 'meal' };
+const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry', meal: 'meals' };
 
 // In locale (Live Server) i link delle email devono comunque portare all'app pubblicata
 const appUrl = () =>
@@ -172,7 +172,7 @@ export async function openBook(id) {
 /** Scarica tutto il contenuto del ricettario aperto */
 export async function pull() {
   const rows = check(await sb.from('items').select('kind, id, data').eq('book_id', book.id));
-  const d = { categories: [], recipes: [], pantry: [] };
+  const d = { categories: [], recipes: [], pantry: [], meals: [] };
   rows.forEach((r) => d[COLLECTION[r.kind]]?.push({ ...r.data, id: r.id }));
   store.replaceData(d);
   // le modifiche locali non ancora inviate restano valide
@@ -183,7 +183,7 @@ export async function pull() {
 
 export const isEmpty = () => {
   const d = store.snapshot();
-  return !d.categories.length && !d.recipes.length && !d.pantry.length;
+  return !d.categories.length && !d.recipes.length && !d.pantry.length && !d.meals.length;
 };
 
 export async function renameBook(name) {
@@ -316,7 +316,7 @@ const allRows = (bookId) => {
 /** Id di tutte le foto usate da categorie, ricette e alimenti */
 const photoIds = () => {
   const d = store.snapshot();
-  return [...new Set([...d.categories, ...d.recipes, ...d.pantry].map((x) => x.photo).filter(Boolean))];
+  return [...new Set([...d.categories, ...d.recipes, ...d.pantry, ...d.meals].map((x) => x.photo).filter(Boolean))];
 };
 
 /** Porta nel ricettario aperto i dati che erano salvati solo su questo dispositivo */

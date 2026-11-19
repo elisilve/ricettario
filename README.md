@@ -14,6 +14,8 @@ Si installa sulla schermata Home come un'app vera e funziona anche offline.
 - Ricalcolo delle quantità degli ingredienti in base alle porzioni
 - **Dispensa**: alimenti con i valori per 100 g (o per pezzo); negli ingredienti delle ricette
   i macronutrienti si calcolano da soli in base alla quantità, con totale ricetta e per porzione
+- **Pasti**: combinazioni che mangi spesso (alimenti della dispensa + porzioni di ricette),
+  raggruppate per momento della giornata, con calorie e macro già sommati
 - Foto o emoji per ricette e categorie
 - Modalità chiara / scura
 - **Account e condivisione** (Supabase): accesso da qualsiasi dispositivo, ricettari condivisi
@@ -59,7 +61,7 @@ Apri la cartella in VS Code e avviala con l'estensione **Live Server** (tasto de
 
 - [x] v1 — Ricette per categorie con valori nutrizionali
 - [ ] Foto delle ricette
-- [ ] Prodotti pronti e pasti salvati (es. "colazione tipo")
+- [x] Pasti salvati (es. "colazione tipo")
 - [ ] Piano alimentare settimanale
 - [ ] Lista della spesa generata dal piano, con spunte
 - [ ] Diario giornaliero con obiettivi di macronutrienti

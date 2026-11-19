@@ -21,6 +21,14 @@
 //    createdAt, updatedAt
 //  }
 //
+//  Meal (pasto salvato, es. "la mia colazione") {
+//    id, name, emoji, photo,
+//    moment  -> 'colazione' | 'pranzo' | 'cena' | 'spuntino'
+//    items   -> [{ qty, unit, name, foodId, food, recipeId }]
+//               alimento della dispensa (come gli ingredienti) oppure porzioni di una ricetta
+//    notes, createdAt, updatedAt
+//  }
+//
 //  Food (dispensa) {
 //    id, name,
 //    basis   -> 'g' = valori per 100 g (o 100 ml) | 'pz' = valori per 1 pezzo
@@ -81,10 +89,10 @@ function seed() {
     },
   ];
   // seeded: dati di esempio mai toccati (non vale la pena portarli nell'account)
-  return { version: 1, seeded: true, categories: defaultCategories(), recipes, pantry: [] };
+  return { version: 1, seeded: true, categories: defaultCategories(), recipes, pantry: [], meals: [] };
 }
 
-const empty = () => ({ version: 1, categories: [], recipes: [], pantry: [] });
+const empty = () => ({ version: 1, categories: [], recipes: [], pantry: [], meals: [] });
 
 let data = load(LOCAL_KEY, true);
 
@@ -112,6 +120,7 @@ function load(key, withSeed) {
 // Aggiunge i campi nuovi ai dati salvati con le versioni precedenti
 function normalize(d) {
   if (!Array.isArray(d.pantry)) d.pantry = [];
+  if (!Array.isArray(d.meals)) d.meals = [];
   // L'unità dei grammi si scrive "gr"
   d.recipes.forEach((r) => (r.ingredients || []).forEach((i) => { if (i.unit === 'g') i.unit = 'gr'; }));
   // Ordine delle categorie
@@ -154,11 +163,11 @@ const emit = (change) => {
   listeners.forEach((fn) => fn(change));
 };
 
-const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry' };
+const COLLECTION = { category: 'categories', recipe: 'recipes', food: 'pantry', meal: 'meals' };
 
 /** Sostituisce tutti i dati con quelli arrivati dal server (senza rimandarli indietro) */
-export function replaceData({ categories = [], recipes = [], pantry = [] }) {
-  data = normalize({ version: 1, categories, recipes, pantry });
+export function replaceData({ categories = [], recipes = [], pantry = [], meals = [] }) {
+  data = normalize({ version: 1, categories, recipes, pantry, meals });
   persist();
 }
 
@@ -252,6 +261,30 @@ export function deleteFood(id) {
 }
 
 export const recipesUsingFood = (id) => data.recipes.filter((r) => r.ingredients.some((i) => i.foodId === id));
+
+// ---------- Pasti ----------
+export const getMeals = () => [...data.meals].sort((a, b) => a.name.localeCompare(b.name, 'it'));
+export const getMeal = (id) => data.meals.find((m) => m.id === id);
+
+export function saveMeal(meal) {
+  const now = Date.now();
+  if (meal.id && getMeal(meal.id)) {
+    const i = data.meals.findIndex((m) => m.id === meal.id);
+    data.meals[i] = { ...data.meals[i], ...meal, updatedAt: now };
+  } else {
+    meal = { ...meal, id: uid(), createdAt: now, updatedAt: now };
+    data.meals.push(meal);
+  }
+  persist();
+  emit({ kind: 'meal', id: meal.id, item: getMeal(meal.id) });
+  return meal.id;
+}
+
+export function deleteMeal(id) {
+  data.meals = data.meals.filter((m) => m.id !== id);
+  persist();
+  emit({ kind: 'meal', id, item: null });
+}
 
 // ---------- Backup ----------
 // Il backup include anche le foto

@@ -93,3 +93,25 @@ export function recipeNutrition(r, portions = r.servings || 1) {
 
   return { auto, legacy, total, perServing: scale(total, 1 / portions), perIngredient, missing };
 }
+
+
+/**
+ * Valori di un pasto: somma dei suoi elementi.
+ *  - alimento della dispensa: come un ingrediente (es. 200 ml di latte di mandorla)
+ *  - ricetta: valori per porzione × numero di porzioni
+ * Restituisce { total, perItem[], missing[] }
+ */
+export function mealNutrition(meal) {
+  const perItem = meal.items.map((it) => {
+    if (it.recipeId) {
+      const r = store.getRecipe(it.recipeId);
+      if (!r) return null;
+      const k = Number(it.qty) || 1;
+      return scale(recipeNutrition(r).perServing, k);
+    }
+    return ingredientMacros(it);
+  });
+  const total = perItem.reduce((acc, m) => (m ? add(acc, m) : acc), { ...ZERO });
+  const missing = meal.items.filter((it, i) => it.name && !perItem[i] && !isNegligible(it)).map((it) => it.name);
+  return { total, perItem, missing };
+}
