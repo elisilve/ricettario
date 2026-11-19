@@ -2117,6 +2117,92 @@ body.read-only .swipe-action {
   margin-top: 22px;
 }
 
+.sheet.month-sheet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+  background: var(--bg);
+}
+
+.month-head {
+  flex-shrink: 0;
+  margin: 0 -18px;
+  padding: 14px 18px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.month-head .sheet-title {
+  margin: 0 0 18px;
+}
+
+.months {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -18px;
+  padding: 0 18px calc(18px + var(--safe-bottom));
+}
+
+.month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding-bottom: 8px;
+}
+
+.month-weekdays span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.month {
+  padding-top: 14px;
+}
+
+.month + .month {
+  margin-top: 10px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 18px;
+}
+
+.month-title {
+  margin: 0 4px 8px;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+}
+
+.month-grid .wd {
+  padding: 0 0 4px;
+  gap: 2px;
+}
+
+.month-grid .wd-num {
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+
+.month-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
 .auth {
   position: fixed;
   inset: 0;
