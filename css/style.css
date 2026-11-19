@@ -2203,6 +2203,180 @@ body.read-only .swipe-action {
   color: var(--text-2);
 }
 
+.plan-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  transition: transform .15s;
+}
+
+.plan-note:active {
+  transform: scale(.98);
+}
+
+.plan-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+}
+
+.plan-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.plan-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-text strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.plan-text small {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.plan-go {
+  color: var(--accent);
+}
+
+.shop-week {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+}
+
+.shop-week-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shop-week-title strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.shop-week-title small {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.shop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shop-item:last-child {
+  border-bottom: 0;
+}
+
+.shop-item .ing-avatar {
+  margin-right: 0;
+}
+
+.shop-item.checked .shop-name {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+.shop-item.checked .shop-qty, .shop-item.checked .ing-avatar {
+  opacity: .5;
+}
+
+.check {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--text-3);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: background-color .2s, border-color .2s, color .2s, transform .2s cubic-bezier(.3, 1.6, .5, 1);
+}
+
+.check svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.shop-item:active .check {
+  transform: scale(.85);
+}
+
+.checked .check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.shop-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.shop-name small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shop-qty {
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-uncheck {
+  margin: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.shop-done-all {
+  margin: 0;
+}
+
+.shop-hint {
+  margin: 4px 8px 0;
+  font-size: 13px;
+}
+
 .auth {
   position: fixed;
   inset: 0;

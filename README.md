@@ -20,6 +20,9 @@ Si installa sulla schermata Home come un'app vera e funziona anche offline.
   calorie e macro della giornata, cinque momenti (colazione, spuntini, pranzo, cena) in cui aggiungere
   alimenti della dispensa, ricette o pasti salvati — anche con un tocco. Il diario è personale:
   non viene condiviso con chi usa il tuo ricettario
+- **Piano della settimana e lista della spesa**: nei giorni futuri del Diario segni quello che vuoi
+  mangiare; dal carrello in alto si apre la lista della spesa della settimana, con ricette e pasti
+  scomposti negli ingredienti singoli, quantità sommate e spunte per quello che hai già
 - Foto o emoji per ricette e categorie
 - Modalità chiara / scura
 - **Account e condivisione** (Supabase): accesso da qualsiasi dispositivo, ricettari condivisi
@@ -52,6 +55,7 @@ scss/                  stile, diviso per argomento (si modifica qui)
 css/style.css          CSS generato da css/style.scss (non modificarlo a mano)
 js/swipe.js            scorri a sinistra per eliminare
 js/diary.js            diario alimentare: dati, date, sincronizzazione personale
+js/shopping.js         lista della spesa: scompone ricette e pasti in ingredienti e somma le quantità
 js/app.js              router e schermate
 js/store.js            dati e salvataggio
 js/ui.js               icone, modali, utility
@@ -99,8 +103,8 @@ Dove cercare:
 - [x] v1 — Ricette per categorie con valori nutrizionali
 - [ ] Foto delle ricette
 - [x] Pasti salvati (es. "colazione tipo")
-- [ ] Piano alimentare settimanale
-- [ ] Lista della spesa generata dal piano, con spunte
+- [x] Piano alimentare settimanale (nel Diario)
+- [x] Lista della spesa generata dal piano, con spunte
 - [x] Diario giornaliero
 - [ ] Obiettivi di calorie e macronutrienti nel diario
 - [x] Account, sincronizzazione fra dispositivi e condivisione

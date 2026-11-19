@@ -5,6 +5,7 @@ import * as store from './store.js';
 import { initImages, getImage, putImage, deleteImage, fileToDataUrl } from './images.js';
 import { enableSwipe, swipeWrap } from './swipe.js';
 import * as diary from './diary.js';
+import * as shopping from './shopping.js';
 import * as cloud from './cloud.js';
 import { authScreen, accountSheet, errorText } from './account.js';
 import { esc, icon, num, fmt, kcalFromMacros, toast, openSheet, confirmSheet, actionSheet, themeRow, bindThemeRow } from './ui.js';
@@ -24,6 +25,7 @@ const routes = [
   [/^#\/pasti$/, () => renderMeals()],
   [/^#\/diario(?:\/(\d{4}-\d\d-\d\d))?$/, (m) => renderDiary(m[1])],
   [/^#\/diario\/(\d{4}-\d\d-\d\d)\/([\w-]+)$/, (m) => renderDiarySlot(m[1], m[2])],
+  [/^#\/spesa(?:\/(\d{4}-\d\d-\d\d))?$/, (m) => renderShopping(m[1])],
   [/^#\/pasto\/([\w-]+)$/, (m) => renderMeal(m[1])],
   [/^#\/nuovo-pasto(?:\/([\w-]+))?$/, (m) => renderMealEditor(null, m[1])],
   [/^#\/modifica-pasto\/([\w-]+)$/, (m) => renderMealEditor(m[1])],
@@ -1279,8 +1281,18 @@ function diaryDayHtml(key) {
       <h2 class="section-title">${label ? `${label} <small>${longDate(key)}</small>` : longDate(key)}</h2>
       ${key !== today ? `<a class="today-btn" href="#/diario">Oggi</a>` : ''}
     </div>
+    ${key > today ? `
+      <!-- Giorno futuro: avviso con collegamento alla lista della spesa -->
+      <a class="plan-note" href="#/spesa/${diary.weekStart(key)}">
+        <span class="plan-icon">${icon.cart}</span>
+        <span class="plan-text">
+          <strong>Giorno pianificato</strong>
+          <small>Quello che aggiungi qui finisce nella lista della spesa</small>
+        </span>
+        <span class="plan-go">${icon.chevron}</span>
+      </a>` : ''}
 
-    ${nutritionCard(dayNut, 'Totale del giorno')}
+    ${nutritionCard(dayNut, key > today ? 'Totale previsto' : 'Totale del giorno')}
 
     ${diary.SLOTS.map((slot) => {
       const items = diary.itemsOf(key, slot.id);
@@ -1318,7 +1330,10 @@ const diaryView = { key: null, monday: null };
 
 function renderDiary(key = diary.dayKey()) {
   setTab('diario');
-  setNav({ title: 'Diario' });
+  setNav({
+    title: 'Diario',
+    right: `<a class="nav-btn icon" id="cart-btn" href="#/spesa/${diary.weekStart(key)}" aria-label="Lista della spesa">${icon.cart}</a>`,
+  });
   // pagina già aperta (cambio di giorno o dati aggiornati): cambia solo quello che serve
   if ($view.querySelector('.page.diary')) return updateDiary(key);
 
@@ -1401,6 +1416,8 @@ function updateDiary(key) {
     });
   }
   $view.querySelector('.week-title span').textContent = weekTitle(diaryView.monday);
+  const $cart = document.getElementById('cart-btn');
+  if ($cart) $cart.href = `#/spesa/${diaryView.monday}`;
 
   const $day = document.getElementById('diary-day');
   if (!prev || prev === key || matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -1559,6 +1576,105 @@ function renderDiarySlot(key, slotId) {
     diary.saveSlot(key, slotId, editor.items());
     toast('Diario aggiornato');
     go(back, true);
+  };
+}
+
+// =============================================================
+//  LISTA DELLA SPESA — dagli elementi segnati nel diario di una settimana
+// =============================================================
+function renderShopping(monday) {
+  // senza settimana indicata: la prossima (è quella da preparare)
+  monday = diary.weekStart(monday || diary.addDays(diary.dayKey(), 7));
+  setTab(null);
+  setNav({
+    title: 'Lista della spesa',
+    back: { href: `#/diario/${diaryView.key && diary.weekStart(diaryView.key) === monday ? diaryView.key : monday}`, label: 'Diario' },
+    right: `<button class="nav-btn icon" id="share-list" aria-label="Condividi la lista">${icon.share}</button>`,
+  });
+
+  const planned = shopping.plannedDays(monday);
+  $view.innerHTML = `
+    <section class="page shopping">
+      <h1 class="large-title">Lista della spesa</h1>
+
+      <div class="week glass shop-week">
+        <div class="week-head">
+          <a class="week-nav" href="#/spesa/${diary.addDays(monday, -7)}" aria-label="Settimana precedente">${icon.chevronLeft}</a>
+          <div class="shop-week-title">
+            <strong>${weekTitle(monday)}</strong>
+            <small>${planned === 1 ? '1 giorno pianificato' : `${planned} giorni pianificati`} su 7</small>
+          </div>
+          <a class="week-nav" href="#/spesa/${diary.addDays(monday, 7)}" aria-label="Settimana successiva">${icon.chevron}</a>
+        </div>
+      </div>
+
+      <div id="shop-list"></div>
+    </section>`;
+
+  const $list = document.getElementById('shop-list');
+  const draw = () => {
+    const rows = shopping.weekList(monday);
+    if (!rows.length) {
+      $list.innerHTML = `
+        <div class="empty-state glass">
+          <span class="big-emoji">🛒</span>
+          <p>Per questa settimana non hai ancora segnato niente. Nel Diario aggiungi ai giorni quello che vuoi mangiare: qui troverai tutti gli ingredienti da comprare.</p>
+          <a class="btn primary" href="#/diario/${monday}">Pianifica nel Diario</a>
+        </div>`;
+      return rows;
+    }
+    const todo = rows.filter((r) => !r.checked);
+    const done = rows.filter((r) => r.checked);
+    const row = (r) => {
+      const food = r.foodId && store.getFood(r.foodId);
+      return `
+        <li class="shop-item ${r.checked ? 'checked' : ''}" data-key="${esc(r.key)}">
+          <span class="check" aria-hidden="true">${icon.check}</span>
+          <span class="ing-avatar ${food ? '' : 'blank'}">${food ? foodAvatar(food) : ''}</span>
+          <span class="shop-name">
+            ${esc(r.name)}
+            ${r.from.length ? `<small>${esc(r.from.join(' · '))}</small>` : ''}
+          </span>
+          <span class="shop-qty">${esc(r.amount)}</span>
+        </li>`;
+    };
+    $list.innerHTML = `
+      <div class="card glass">
+        <h2 class="card-title">Da comprare <small>${todo.length}</small></h2>
+        ${todo.length ? `<ul class="shop-list">${todo.map(row).join('')}</ul>` : '<p class="muted shop-done-all">Hai preso tutto! 🎉</p>'}
+      </div>
+      ${done.length ? `
+        <div class="card glass">
+          <div class="card-head">
+            <h2 class="card-title">Già presi <small>${done.length}</small></h2>
+            <button type="button" class="link-btn shop-uncheck" id="uncheck-all">Togli le spunte</button>
+          </div>
+          <ul class="shop-list">${done.map(row).join('')}</ul>
+        </div>` : ''}
+      <p class="hint shop-hint">Spunta quello che hai già in casa o che metti nel carrello. Le quantità sono la somma di tutti i pasti segnati nella settimana.</p>`;
+    return rows;
+  };
+  draw();
+
+  // Spunta: il cerchio si riempie subito, poi la voce passa nell'altro elenco
+  $list.addEventListener('click', (e) => {
+    if (e.target.closest('#uncheck-all')) { shopping.clearChecks(monday); draw(); return; }
+    const li = e.target.closest('.shop-item');
+    if (!li) return;
+    const checked = !li.classList.contains('checked');
+    li.classList.toggle('checked', checked);
+    shopping.setChecked(monday, li.dataset.key, checked);
+    clearTimeout(draw.timer);
+    draw.timer = setTimeout(draw, 450);
+  });
+
+  // Condividi (WhatsApp, Note, Messaggi…) quello che manca
+  document.getElementById('share-list').onclick = async () => {
+    const text = shopping.shareText(`Lista della spesa · ${weekTitle(monday)}`, shopping.weekList(monday));
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); toast('Lista copiata'); }
+    } catch { /* condivisione annullata */ }
   };
 }
 

@@ -46,6 +46,7 @@ export const icon = {
   user: svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.9-3.9 3.9-6 7.5-6s6.6 2.1 7.5 6"/>'),
   calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.3" fill="currentColor" stroke="none"/>'),
   edit: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+  cart: svg('<path d="M3 4h2.2l2.1 10.2a1.5 1.5 0 001.5 1.2h8.4a1.5 1.5 0 001.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/>'),
   chevronDown: svg('<path d="M6 9l6 6 6-6"/>'),
   chevronLeft: svg('<path d="M15 5l-7 7 7 7"/>'),
   meal: svg('<circle cx="12" cy="13" r="6.5"/><path d="M3 4v5a2 2 0 002 2M5 4v16M21 4c-1.3 1-2 3-2 6h2v10"/>'),
